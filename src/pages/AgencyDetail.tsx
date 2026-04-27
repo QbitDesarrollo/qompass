@@ -10,6 +10,9 @@ import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import PeriodSelector from '@/components/PeriodSelector';
+import KPIEvolutionChart from '@/components/KPIEvolutionChart';
+import { Period, currentPeriod, getAgencyPeriodMetrics, getAgencyPeriodSeries, formatPeriod } from '@/lib/historical-data';
 
 const INDEX_INFO: Record<string, string> = {
   IPE: 'Índice de Poder Estratégico. Mide la capacidad de Quantum Group para influir estratégicamente sobre la agencia. Fórmula: (DEC/100·5)·0.35 + CME·0.35 + IIO·0.15 + (6−IS)·0.15. Umbral 3.8 activa transición Fase 4→3.',
@@ -142,6 +145,7 @@ export default function AgencyDetail() {
 
   const [overrides, setOverrides] = useState<Partial<Agency>>({});
   const [simulating, setSimulating] = useState(false);
+  const [period, setPeriod] = useState<Period>(() => currentPeriod('month'));
   
   if (!baseAgency) {
     return (
@@ -154,13 +158,58 @@ export default function AgencyDetail() {
     );
   }
 
-  const agency: Agency = { ...baseAgency, ...overrides };
+  // Métricas financieras del periodo seleccionado para esta agencia
+  const periodMetrics = useMemo(
+    () => getAgencyPeriodMetrics(baseAgency.id, period),
+    [baseAgency.id, period],
+  );
+
+  // Agencia base ajustada al periodo (manteniendo atributos estructurales)
+  const periodAdjusted: Agency = useMemo(() => {
+    if (!periodMetrics.available) return baseAgency;
+    return {
+      ...baseAgency,
+      revenue: periodMetrics.revenue,
+      agi: periodMetrics.agi,
+      ebitda: periodMetrics.ebitda,
+      operatingCashflow: periodMetrics.operatingCashflow,
+      debtService: periodMetrics.debtService,
+      margin: periodMetrics.margin,
+    };
+  }, [baseAgency, periodMetrics]);
+
+  const agency: Agency = { ...periodAdjusted, ...overrides };
+
+  // Serie temporal de últimos 8 periodos para los KPIs (usa misma granularidad)
+  const series = useMemo(() => {
+    return getAgencyPeriodSeries(baseAgency.id, period, 8);
+  }, [baseAgency.id, period]);
+
+  const seriesLabels = useMemo(() => {
+    return series.map((_, i) => {
+      // Etiqueta corta basada en posición vs periodo seleccionado
+      const offset = series.length - 1 - i;
+      return offset === 0 ? 'Actual' : `−${offset}`;
+    });
+  }, [series]);
+
+  const evolution = useMemo(() => ({
+    revenue: series.map((s, i) => ({ label: seriesLabels[i], value: s.revenue })),
+    agi: series.map((s, i) => ({ label: seriesLabels[i], value: s.agi })),
+    ebitda: series.map((s, i) => ({ label: seriesLabels[i], value: s.ebitda })),
+    margin: series.map((s, i) => ({ label: seriesLabels[i], value: s.margin })),
+    equity: series.map((s, i) => ({ label: seriesLabels[i], value: baseAgency.equity })),
+    ocf: series.map((s, i) => ({ label: seriesLabels[i], value: s.operatingCashflow })),
+    ds: series.map((s, i) => ({ label: seriesLabels[i], value: s.debtService })),
+    dscr: series.map((s, i) => ({ label: seriesLabels[i], value: s.debtService > 0 ? s.operatingCashflow / s.debtService : 0 })),
+  }), [series, seriesLabels, baseAgency.equity]);
+
   const ipe = calcIPE(agency);
   const ipp = calcIPP(agency);
   const ipc = calcIPC(agency);
-  const baseIpe = calcIPE(baseAgency);
-  const baseIpp = calcIPP(baseAgency);
-  const baseIpc = calcIPC(baseAgency);
+  const baseIpe = calcIPE(periodAdjusted);
+  const baseIpp = calcIPP(periodAdjusted);
+  const baseIpc = calcIPC(periodAdjusted);
   const ascension = getAscensionOpportunity(agency);
   const eligible = isLevel1Eligible(agency);
 
@@ -191,9 +240,10 @@ export default function AgencyDetail() {
               )}
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              {agency.vertical} · {agency.country} · {NIVEL_LABELS[agency.nivel]}
+              {agency.vertical} · {agency.country} · {NIVEL_LABELS[agency.nivel]} · Periodo: <span className="font-mono text-foreground">{formatPeriod(period)}</span>
             </p>
           </div>
+          <PeriodSelector period={period} onPeriodChange={setPeriod} />
         </div>
 
         {/* Mode toggle bar — sticky, imposible de no ver */}
@@ -244,23 +294,27 @@ export default function AgencyDetail() {
           </div>
         )}
 
-        {/* Financial KPIs */}
+        {/* Financial KPIs con evolución */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {[
-            { label: 'Revenue', value: formatCurrency(agency.revenue) },
-            { label: 'AGI', value: formatCurrency(agency.agi) },
-            { label: 'EBITDA', value: formatCurrency(agency.ebitda), highlight: true },
-            { label: 'Margen', value: formatPercent(agency.margin) },
-            { label: 'Equity QG', value: agency.equity > 0 ? `${agency.equity}%` : 'N/A', gold: true },
+            { key: 'revenue', label: 'Revenue',  value: formatCurrency(agency.revenue), data: evolution.revenue, fmt: formatCurrency, tone: 'muted'   as const, valueCls: 'text-foreground', borderCls: '' },
+            { key: 'agi',     label: 'AGI',      value: formatCurrency(agency.agi),     data: evolution.agi,     fmt: formatCurrency, tone: 'muted'   as const, valueCls: 'text-foreground', borderCls: '' },
+            { key: 'ebitda',  label: 'EBITDA',   value: formatCurrency(agency.ebitda),  data: evolution.ebitda,  fmt: formatCurrency, tone: 'primary' as const, valueCls: 'text-primary',    borderCls: 'border-primary/30' },
+            { key: 'margin',  label: 'Margen',   value: formatPercent(agency.margin),   data: evolution.margin,  fmt: (v: number) => formatPercent(v), tone: 'primary' as const, valueCls: 'text-foreground', borderCls: '' },
+            { key: 'equity',  label: 'Equity QG', value: agency.equity > 0 ? `${agency.equity}%` : 'N/A', data: evolution.equity, fmt: (v: number) => `${v.toFixed(0)}%`, tone: 'accent' as const, valueCls: 'text-accent', borderCls: 'border-accent/30' },
           ].map(kpi => (
-            <div key={kpi.label} className={`glass-card p-4 ${kpi.highlight ? 'border-primary/30' : kpi.gold ? 'border-accent/30' : ''}`}>
+            <div key={kpi.key} className={`glass-card p-4 ${kpi.borderCls}`}>
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{kpi.label}</span>
-              <p className={`text-lg font-bold font-mono mt-1 ${kpi.highlight ? 'text-primary' : kpi.gold ? 'text-accent' : 'text-foreground'}`}>{kpi.value}</p>
+              <p className={`text-lg font-bold font-mono mt-1 ${kpi.valueCls}`}>{kpi.value}</p>
+              <div className="mt-2">
+                <KPIEvolutionChart data={kpi.data} tone={kpi.tone} formatValue={kpi.fmt} height={48} />
+              </div>
+              <p className="text-[9px] text-muted-foreground mt-1 font-mono">Últ. 8 periodos</p>
             </div>
           ))}
         </div>
 
-        {/* Cash & Debt */}
+        {/* Cash & Debt con evolución */}
         {(() => {
           const dscr = calcDSCR(agency);
           const status = getDSCRStatus(dscr);
@@ -274,11 +328,13 @@ export default function AgencyDetail() {
                   <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Operating Cashflow</span>
                   <p className="text-lg font-bold font-mono mt-1 text-primary">{formatCurrency(agency.operatingCashflow)}</p>
                   <p className="text-[10px] text-muted-foreground">Flujo operativo anual</p>
+                  <div className="mt-2"><KPIEvolutionChart data={evolution.ocf} tone="primary" formatValue={formatCurrency} height={44} /></div>
                 </div>
                 <div className="glass-card p-4">
                   <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Debt Service</span>
                   <p className="text-lg font-bold font-mono mt-1 text-foreground">{formatCurrency(agency.debtService)}</p>
                   <p className="text-[10px] text-muted-foreground">Obligaciones de deuda anuales</p>
+                  <div className="mt-2"><KPIEvolutionChart data={evolution.ds} tone="muted" formatValue={formatCurrency} height={44} /></div>
                 </div>
                 <div className={`glass-card p-4 ${cls}`}>
                   <div className="flex items-start justify-between">
@@ -287,6 +343,7 @@ export default function AgencyDetail() {
                   </div>
                   <p className={`text-lg font-bold font-mono mt-1 ${valCls}`}>{isFinite(dscr) ? `${dscr.toFixed(2)}x` : '∞'}</p>
                   <p className="text-[10px] text-muted-foreground">{DSCR_STATUS_LABEL[status]} · OCF / Debt Service</p>
+                  <div className="mt-2"><KPIEvolutionChart data={evolution.dscr} tone="accent" formatValue={(v) => `${v.toFixed(2)}x`} height={44} /></div>
                 </div>
               </div>
             </div>

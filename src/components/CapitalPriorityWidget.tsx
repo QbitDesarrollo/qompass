@@ -1,6 +1,6 @@
 import { useMemo, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Target, Zap, AlertTriangle, Wrench, Search, ArrowRight, Info, FlaskConical, BookOpen } from 'lucide-react';
+import { Target, Zap, AlertTriangle, Wrench, Search, ArrowRight, Info, FlaskConical, BookOpen, Check, X } from 'lucide-react';
 import { mockAgencies } from '@/lib/mock-data';
 import { computeCapitalPriorities, formatCurrency, QUADRANT_META, PriorityQuadrant, CapitalPriority } from '@/lib/quantum-engine';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -137,6 +137,19 @@ function ActionBadge({ tone, children }: { tone: 'primary' | 'accent' | 'warning
     <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md border ${TONE_CLASSES[tone].badge}`}>
       {children}
     </span>
+  );
+}
+
+function CriterionRow({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <li className="flex items-center gap-1.5 text-[11px]">
+      {ok ? (
+        <Check className="w-3 h-3 text-primary shrink-0" />
+      ) : (
+        <X className="w-3 h-3 text-destructive shrink-0" />
+      )}
+      <span className={ok ? 'text-foreground' : 'text-muted-foreground'}>{label}</span>
+    </li>
   );
 }
 
@@ -403,6 +416,7 @@ function PriorityMatrix({ priorities, onSelect, selectedId, simulatedIds }: { pr
 function PriorityList({ priorities, limit, onSelect, selectedId, simulatedIds }: { priorities: CapitalPriority[]; limit?: number; onSelect?: (id: string) => void; selectedId?: string | null; simulatedIds: Set<string> }) {
   const rows = limit ? priorities.slice(0, limit) : priorities;
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="space-y-1.5">
       {rows.map((p, i) => {
         const tone = TONE_CLASSES[p.action.tone];
@@ -462,21 +476,53 @@ function PriorityList({ priorities, limit, onSelect, selectedId, simulatedIds }:
             </div>
             <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </AgencyAction>
-            {elig.eligible && (
-              <Link
-                to={`/playbooks/${p.agency.id}`}
-                onClick={(e) => e.stopPropagation()}
-                className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                title="Esta agencia cumple score, cuadrante deploy, oportunidad de ascenso y DSCR ≥ 2.0x"
-              >
-                <BookOpen className="w-3 h-3" />
-                Ejecutar Playbook
-              </Link>
-            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {elig.eligible ? (
+                    <Link
+                      to={`/playbooks/${p.agency.id}`}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      <BookOpen className="w-3 h-3" />
+                      Ejecutar Playbook
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      aria-disabled="true"
+                      className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-md bg-secondary/60 text-muted-foreground border border-border cursor-not-allowed opacity-70"
+                    >
+                      <BookOpen className="w-3 h-3" />
+                      Ejecutar Playbook
+                    </button>
+                  )}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="left" align="center" className="max-w-xs p-3 space-y-2 text-xs">
+                <div className="font-semibold text-foreground">Criterios para Ejecutar Playbook</div>
+                <div className="text-[10px] text-muted-foreground">
+                  En el Ranking accionable del War Room, cuando una agencia cumple los 4 criterios aparece el badge <span className="text-primary font-semibold">Playbook ready</span> y se habilita el botón <span className="text-primary font-semibold">Ejecutar Playbook</span>.
+                </div>
+                <ul className="space-y-1">
+                  <CriterionRow ok={elig.score} label="Score ≥ 70" />
+                  <CriterionRow ok={elig.quadrant} label='Cuadrante "Inyectar Capital"' />
+                  <CriterionRow ok={elig.ascension} label="Oportunidad de ascenso activa" />
+                  <CriterionRow ok={elig.dscr} label="DSCR ≥ 2.0x (cobertura total)" />
+                </ul>
+                {!elig.eligible && (
+                  <div className="pt-1 border-t border-border/40 text-[10px] text-muted-foreground">
+                    Falta: {elig.reasons.join(' · ')}
+                  </div>
+                )}
+              </TooltipContent>
+            </Tooltip>
           </div>
         );
       })}
     </div>
+    </TooltipProvider>
   );
 }
 

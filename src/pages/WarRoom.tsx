@@ -278,6 +278,7 @@ export default function WarRoom() {
               {periodAgencies.filter(a => a.vertical === selectedVertical).map(a => {
                 const isSelected = selectedAgencyId === a.id;
                 const isTarget = simulation?.targetAgencies.some(t => t.id === a.id);
+                const simulated = isSimulated(a.id);
                 return (
                   <button
                     key={a.id}
@@ -288,9 +289,19 @@ export default function WarRoom() {
                         : isTarget
                         ? 'bg-secondary/30 ring-1 ring-accent/50 hover:bg-secondary/50'
                         : 'bg-secondary/30 hover:bg-secondary/50'
-                    }`}
+                    } ${simulated ? 'border-l-2 border-accent' : ''}`}
                   >
-                    <span className={`col-span-4 font-medium truncate ${isSelected ? 'text-primary' : 'text-foreground'}`}>{a.name}</span>
+                    <span className={`col-span-4 font-medium truncate inline-flex items-center gap-1.5 ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                      <span className="truncate">{a.name}</span>
+                      {simulated && (
+                        <span
+                          title="Esta agencia tiene una simulación activa desde su detalle"
+                          className="inline-flex items-center gap-0.5 text-[8.5px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-accent/15 text-accent border border-accent/30"
+                        >
+                          <FlaskConical className="w-2.5 h-2.5" /> SIM
+                        </span>
+                      )}
+                    </span>
                     <span className="col-span-1 text-center text-muted-foreground">N{a.nivel}</span>
                     <span className="col-span-2 text-right font-mono text-foreground">{formatCurrency(a.revenue)}</span>
                     <span className="col-span-2 text-right font-mono text-primary">{formatCurrency(a.ebitda)}</span>

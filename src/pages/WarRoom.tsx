@@ -7,6 +7,8 @@ import CapitalPriorityWidget from '@/components/CapitalPriorityWidget';
 import { Swords, ArrowRight, TrendingUp, Shield, Zap, DollarSign, Sparkles, Banknote, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { Slider } from '@/components/ui/slider';
+import PeriodSelector from '@/components/PeriodSelector';
+import { Period, currentPeriod, getAllAgencyMetrics, formatPeriod } from '@/lib/historical-data';
 
 export default function WarRoom() {
   const [selectedVertical, setSelectedVertical] = useState<Vertical>('Creative & Strategy');
@@ -18,13 +20,34 @@ export default function WarRoom() {
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
   const [amortYears, setAmortYears] = useState(6);
   const [annualRate, setAnnualRate] = useState(10); // % anual
+  const [period, setPeriod] = useState<Period>(() => currentPeriod('month'));
 
-  const currentConsolidated = useMemo(() => getConsolidatedEbitda(mockAgencies), []);
+  // Vista de agencias con métricas financieras del periodo seleccionado.
+  // Mantiene atributos estructurales (equity, vertical, nivel, irf) y reemplaza
+  // los flujos del periodo (revenue, agi, ebitda, ocf, debtService, margin).
+  const periodAgencies = useMemo<Agency[]>(() => {
+    const metrics = getAllAgencyMetrics(period);
+    return mockAgencies.map(a => {
+      const m = metrics[a.id];
+      if (!m || !m.available) return a;
+      return {
+        ...a,
+        revenue: m.revenue,
+        agi: m.agi,
+        ebitda: m.ebitda,
+        operatingCashflow: m.operatingCashflow,
+        debtService: m.debtService,
+        margin: m.margin,
+      };
+    });
+  }, [period]);
+
+  const currentConsolidated = useMemo(() => getConsolidatedEbitda(periodAgencies), [periodAgencies]);
 
   const simulation = useMemo(() => {
     if (!simulateTransition) return null;
 
-    const verticalAgencies = mockAgencies.filter(a => a.vertical === selectedVertical);
+    const verticalAgencies = periodAgencies.filter(a => a.vertical === selectedVertical);
     const targetAgencies = simulateTransition === '3→2'
       ? verticalAgencies.filter(a => a.nivel === 3)
       : verticalAgencies.filter(a => a.nivel === 2);
@@ -71,7 +94,7 @@ export default function WarRoom() {
       avgIRFBefore,
       avgIRFAfter: avgIRFBefore - irfReduction,
     };
-  }, [selectedVertical, simulateTransition, exitMultiple, standaloneMultiple, customEquity, currentConsolidated]);
+  }, [selectedVertical, simulateTransition, exitMultiple, standaloneMultiple, customEquity, currentConsolidated, periodAgencies]);
 
   const comparisonData = useMemo(() => {
     if (!simulation) return [];
@@ -82,7 +105,7 @@ export default function WarRoom() {
   }, [simulation, currentConsolidated]);
 
   const leverage = useMemo(() => {
-    const list = mockAgencies.filter(a => a.vertical === selectedVertical);
+    const list = periodAgencies.filter(a => a.vertical === selectedVertical);
     const rows = list.map(a => ({
       agency: a,
       ...calcLeverageCapacity(a, targetDSCR, amortYears, annualRate / 100),
@@ -93,19 +116,24 @@ export default function WarRoom() {
     const totalDS = list.reduce((s, a) => s + a.debtService, 0);
     const verticalDSCR = totalDS > 0 ? totalOCF / totalDS : Infinity;
     return { rows, totalAdditionalDebt, totalAdditionalDebtService, verticalDSCR, totalOCF, totalDS };
-  }, [selectedVertical, targetDSCR, amortYears, annualRate]);
+  }, [selectedVertical, targetDSCR, amortYears, annualRate, periodAgencies]);
 
   return (
     <AppLayout>
       <div className="p-6 space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-destructive/10">
-            <Swords className="w-5 h-5 text-destructive" />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-destructive/10">
+              <Swords className="w-5 h-5 text-destructive" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">War Room</h1>
+              <p className="text-sm text-muted-foreground">
+                Simulación de Escenarios de Escalamiento · Periodo: <span className="font-mono text-foreground">{formatPeriod(period)}</span>
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">War Room</h1>
-            <p className="text-sm text-muted-foreground">Simulación de Escenarios de Escalamiento</p>
-          </div>
+          <PeriodSelector period={period} onPeriodChange={setPeriod} />
         </div>
 
         {/* Controls */}
@@ -114,7 +142,7 @@ export default function WarRoom() {
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Vertical</h3>
             <div className="grid grid-cols-1 gap-2">
               {VERTICALS.map(v => {
-                const count = mockAgencies.filter(a => a.vertical === v).length;
+                const count = periodAgencies.filter(a => a.vertical === v).length;
                 return (
                   <button
                     key={v}
@@ -137,7 +165,7 @@ export default function WarRoom() {
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Escenario de Escalamiento</h3>
             <div className="space-y-2">
               {(['3→2', '2→1'] as const).map(t => {
-                const agencies = mockAgencies.filter(a => a.vertical === selectedVertical && (t === '3→2' ? a.nivel === 3 : a.nivel === 2));
+                const agencies = periodAgencies.filter(a => a.vertical === selectedVertical && (t === '3→2' ? a.nivel === 3 : a.nivel === 2));
                 return (
                   <button
                     key={t}
@@ -205,7 +233,7 @@ export default function WarRoom() {
                 <span className="col-span-2 text-right">EBITDA</span>
                 <span className="col-span-3 text-right">Op. Cashflow</span>
               </div>
-              {mockAgencies.filter(a => a.vertical === selectedVertical).map(a => {
+              {periodAgencies.filter(a => a.vertical === selectedVertical).map(a => {
                 const isSelected = selectedAgencyId === a.id;
                 const isTarget = simulation?.targetAgencies.some(t => t.id === a.id);
                 return (
@@ -229,7 +257,7 @@ export default function WarRoom() {
                 );
               })}
               {(() => {
-                const list = mockAgencies.filter(a => a.vertical === selectedVertical);
+                const list = periodAgencies.filter(a => a.vertical === selectedVertical);
                 const totalRev = list.reduce((s, a) => s + a.revenue, 0);
                 const totalEbitda = list.reduce((s, a) => s + a.ebitda, 0);
                 const totalOCF = list.reduce((s, a) => s + a.operatingCashflow, 0);
@@ -249,12 +277,13 @@ export default function WarRoom() {
         {/* Capital Priority — full matrix + ranking */}
         <CapitalPriorityWidget
           variant="full"
+          agencies={periodAgencies}
           targetDSCR={targetDSCR}
           amortYears={amortYears}
           annualRate={annualRate / 100}
           selectedAgencyId={selectedAgencyId}
           onSelectAgency={(id) => {
-            const a = mockAgencies.find(x => x.id === id);
+            const a = periodAgencies.find(x => x.id === id);
             if (a && a.vertical !== selectedVertical) setSelectedVertical(a.vertical);
             setSelectedAgencyId(id);
           }}

@@ -1,1 +1,3 @@
 project_id = "tsuygzvluuedowlztfhv"
+[functions.forecast-suggest]
+verify_jwt = false

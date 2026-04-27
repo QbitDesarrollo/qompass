@@ -262,12 +262,22 @@ function AgencyAction({
 function PriorityMatrix({ priorities, onSelect, selectedId, simulatedIds }: { priorities: CapitalPriority[]; onSelect?: (id: string) => void; selectedId?: string | null; simulatedIds: Set<string> }) {
   const maxEbitda = Math.max(1, ...priorities.map(p => p.ebitda));
   const maxCap = Math.max(1, ...priorities.map(p => p.additionalDebt));
+  // Medianas (mismas que usa computeCapitalPriorities para asignar
+  // cuadrantes). Se usan para colocar las líneas divisorias en la
+  // posición exacta que separa los cuadrantes — así el cuadrante
+  // visual donde cae cada punto coincide con su clasificación.
+  const sortedEb = [...priorities.map(p => p.ebitda)].sort((a, b) => a - b);
+  const sortedCap = [...priorities.map(p => p.additionalDebt)].sort((a, b) => a - b);
+  const medEbitda = sortedEb[Math.floor(sortedEb.length / 2)] ?? 0;
+  const medCap = sortedCap[Math.floor(sortedCap.length / 2)] ?? 0;
+  const xSplitPct = Math.min(95, Math.max(5, (medCap / maxCap) * 100));
+  const ySplitPct = Math.min(95, Math.max(5, (medEbitda / maxEbitda) * 100));
 
   const cells: { q: PriorityQuadrant; title: string; subtitle: string; pos: string }[] = [
-    { q: 'optimize',    title: 'Optimizar / Refinanciar', subtitle: 'Alto EBITDA · Baja capacidad',  pos: 'top-0 left-0' },
-    { q: 'deploy',      title: 'Inyectar Capital',         subtitle: 'Alto EBITDA · Alta capacidad', pos: 'top-0 right-0' },
-    { q: 'restructure', title: 'Reestructurar',            subtitle: 'Bajo EBITDA · Baja capacidad', pos: 'bottom-0 left-0' },
-    { q: 'investigate', title: 'Capacidad Ociosa',         subtitle: 'Bajo EBITDA · Alta capacidad', pos: 'bottom-0 right-0' },
+    { q: 'optimize',    title: 'Optimizar / Refinanciar', subtitle: 'Alto EBITDA · Baja capacidad',  pos: 'top' as const, side: 'left' as const },
+    { q: 'deploy',      title: 'Inyectar Capital',         subtitle: 'Alto EBITDA · Alta capacidad', pos: 'top' as const, side: 'right' as const },
+    { q: 'restructure', title: 'Reestructurar',            subtitle: 'Bajo EBITDA · Baja capacidad', pos: 'bottom' as const, side: 'left' as const },
+    { q: 'investigate', title: 'Capacidad Ociosa',         subtitle: 'Bajo EBITDA · Alta capacidad', pos: 'bottom' as const, side: 'right' as const },
   ];
 
   return (
@@ -288,8 +298,14 @@ function PriorityMatrix({ priorities, onSelect, selectedId, simulatedIds }: { pr
         {/* Quadrant tints */}
         {cells.map(c => {
           const tone = TONE_CLASSES[QUADRANT_META[c.q].tone];
+          const style: React.CSSProperties = {
+            left: c.side === 'left' ? 0 : `${xSplitPct}%`,
+            width: c.side === 'left' ? `${xSplitPct}%` : `${100 - xSplitPct}%`,
+            top: c.pos === 'top' ? 0 : `${100 - ySplitPct}%`,
+            height: c.pos === 'top' ? `${ySplitPct}%` : `${ySplitPct}%`,
+          };
           return (
-            <div key={c.q} className={`absolute w-1/2 h-1/2 ${c.pos} ${tone.bg} border border-border/40`}>
+            <div key={c.q} className={`absolute ${tone.bg} border border-border/40`} style={style}>
               <div className="p-2 flex items-start justify-between gap-1">
                 <div>
                   <div className={`text-[10px] font-semibold ${tone.text}`}>{c.title}</div>
@@ -300,9 +316,9 @@ function PriorityMatrix({ priorities, onSelect, selectedId, simulatedIds }: { pr
             </div>
           );
         })}
-        {/* Axis lines */}
-        <div className="absolute inset-x-0 top-1/2 border-t border-border/60" />
-        <div className="absolute inset-y-0 left-1/2 border-l border-border/60" />
+        {/* Axis lines en la mediana */}
+        <div className="absolute inset-x-0 border-t border-border/60" style={{ top: `${100 - ySplitPct}%` }} />
+        <div className="absolute inset-y-0 border-l border-border/60" style={{ left: `${xSplitPct}%` }} />
 
         {/* Points */}
         {priorities.map(p => {

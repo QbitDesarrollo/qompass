@@ -30,6 +30,19 @@ export interface AgencyHistory {
   points: MonthlyPoint[];
 }
 
+export interface AgencyPeriodMetrics {
+  agencyId: string;
+  revenue: number;
+  agi: number;
+  ebitda: number;
+  operatingCashflow: number;
+  debtService: number;
+  margin: number;        // ebitda / revenue * 100
+  dscr: number;          // ocf / debtService
+  monthsCovered: number;
+  available: boolean;
+}
+
 /** Mes ancla = mes actual del calendario. Los datos "actuales" se asignan a este mes. */
 const NOW = new Date();
 export const ANCHOR_YEAR = NOW.getFullYear();
@@ -290,5 +303,52 @@ export function getPeriodSeries(endPeriod: Period, count: number): PeriodSnapsho
     const p = shiftPeriod(endPeriod, -i);
     out.push(getSnapshot(p));
   }
+  return out;
+}
+
+/* ============================================================
+   Per-agency aggregation
+============================================================ */
+
+/** Agrega las métricas de UNA agencia para el periodo dado. */
+export function getAgencyPeriodMetrics(agencyId: string, period: Period): AgencyPeriodMetrics {
+  const histories = getAllHistories();
+  const h = histories.find(x => x.agencyId === agencyId);
+  const empty: AgencyPeriodMetrics = {
+    agencyId, revenue: 0, agi: 0, ebitda: 0, operatingCashflow: 0, debtService: 0,
+    margin: 0, dscr: 0, monthsCovered: 0, available: false,
+  };
+  if (!h) return empty;
+
+  const months = new Set<string>();
+  let revenue = 0, agi = 0, ebitda = 0, ocf = 0, ds = 0;
+  h.points.forEach(pt => {
+    if (!pointInPeriod(pt.year, pt.month, period)) return;
+    months.add(pt.ym);
+    revenue += pt.revenue;
+    agi += pt.agi;
+    ebitda += pt.ebitda;
+    ocf += pt.operatingCashflow;
+    ds += pt.debtService;
+  });
+
+  const monthsCovered = months.size;
+  return {
+    agencyId,
+    revenue, agi, ebitda,
+    operatingCashflow: ocf,
+    debtService: ds,
+    margin: revenue > 0 ? (ebitda / revenue) * 100 : 0,
+    dscr: ds > 0 ? ocf / ds : Infinity,
+    monthsCovered,
+    available: monthsCovered > 0,
+  };
+}
+
+export function getAllAgencyMetrics(period: Period): Record<string, AgencyPeriodMetrics> {
+  const out: Record<string, AgencyPeriodMetrics> = {};
+  mockAgencies.forEach(a => {
+    out[a.id] = getAgencyPeriodMetrics(a.id, period);
+  });
   return out;
 }

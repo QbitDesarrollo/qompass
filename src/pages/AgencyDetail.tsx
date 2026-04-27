@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import PeriodSelector from '@/components/PeriodSelector';
 import KPIEvolutionChart from '@/components/KPIEvolutionChart';
+import MultiKPIChart from '@/components/MultiKPIChart';
 import { Period, currentPeriod, getAgencyPeriodMetrics, getAgencyPeriodSeries, formatPeriod } from '@/lib/historical-data';
 
 const INDEX_INFO: Record<string, string> = {
@@ -204,6 +205,14 @@ export default function AgencyDetail() {
     dscr: series.map((s, i) => ({ label: seriesLabels[i], value: s.debtService > 0 ? s.operatingCashflow / s.debtService : 0 })),
   }), [series, seriesLabels, baseAgency.equity]);
 
+  const multiKpiData = useMemo(() => series.map((s, i) => ({
+    label: seriesLabels[i],
+    revenue: s.revenue,
+    agi: s.agi,
+    ebitda: s.ebitda,
+    margin: s.margin,
+  })), [series, seriesLabels]);
+
   const ipe = calcIPE(agency);
   const ipp = calcIPP(agency);
   const ipc = calcIPC(agency);
@@ -312,6 +321,28 @@ export default function AgencyDetail() {
               <p className="text-[9px] text-muted-foreground mt-1 font-mono">Últ. 8 periodos</p>
             </div>
           ))}
+        </div>
+
+        {/* Gráfico unificado de evolución */}
+        <div className="glass-card p-5">
+          <div className="flex items-start justify-between flex-wrap gap-2 mb-3">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                Evolución consolidada — Revenue · AGI · EBITDA · Margen
+              </h3>
+              <p className="text-[10px] text-muted-foreground">
+                Últimos 8 periodos terminando en <span className="font-mono text-foreground">{formatPeriod(period)}</span> ·
+                Eje izquierdo: montos · Eje derecho: % margen
+              </p>
+            </div>
+          </div>
+          <MultiKPIChart
+            data={multiKpiData}
+            formatCurrency={formatCurrency}
+            formatPercent={formatPercent}
+            height={300}
+          />
         </div>
 
         {/* Cash & Debt con evolución */}

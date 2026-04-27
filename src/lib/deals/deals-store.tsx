@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useState, ReactNode, useCallback } from 'react';
-import { Deal, DEMO_DEALS, emptyInputs, DealStage } from './deals-data';
+import { Deal, DEMO_DEALS, emptyInputs, DealStage, emptyCompany, StageTemplate } from './deals-data';
 
 interface Ctx {
   deals: Deal[];
@@ -7,6 +7,7 @@ interface Ctx {
   createDeal: (partial: Partial<Deal>) => Deal;
   updateDeal: (id: string, patch: Partial<Deal>) => void;
   setDdStatus: (id: string, itemId: string, status: 'pending'|'review'|'complete'|'redflag') => void;
+  setTemplate: (id: string, stage: DealStage, tpl: StageTemplate) => void;
 }
 
 const DealsContext = createContext<Ctx | null>(null);
@@ -28,6 +29,8 @@ export function DealsProvider({ children }: { children: ReactNode }) {
       inputs: partial.inputs || emptyInputs(),
       ddStatus: {},
       createdAt: new Date().toISOString().slice(0, 10),
+      company: partial.company || emptyCompany(),
+      templates: partial.templates || {} as any,
     };
     setDeals(prev => [nd, ...prev]);
     return nd;
@@ -43,8 +46,14 @@ export function DealsProvider({ children }: { children: ReactNode }) {
       : d));
   }, []);
 
-  const value = useMemo(() => ({ deals, getDeal, createDeal, updateDeal, setDdStatus }),
-    [deals, getDeal, createDeal, updateDeal, setDdStatus]);
+  const setTemplate = useCallback((id: string, stage: DealStage, tpl: StageTemplate) => {
+    setDeals(prev => prev.map(d => d.id === id
+      ? { ...d, templates: { ...(d.templates || {} as any), [stage]: tpl } }
+      : d));
+  }, []);
+
+  const value = useMemo(() => ({ deals, getDeal, createDeal, updateDeal, setDdStatus, setTemplate }),
+    [deals, getDeal, createDeal, updateDeal, setDdStatus, setTemplate]);
 
   return <DealsContext.Provider value={value}>{children}</DealsContext.Provider>;
 }

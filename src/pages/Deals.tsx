@@ -20,7 +20,7 @@ import {
 import { useDeals } from '@/lib/deals/deals-store';
 import {
   computeDeal, ddProgress, fmtCurrency, STAGE_META, DealStage,
-  emptyInputs,
+  emptyInputs, emptyCompany,
 } from '@/lib/deals/deals-data';
 
 const STAGES: DealStage[] = ['sourcing','loi','dd','negotiation','closing','closed','lost'];
@@ -33,16 +33,29 @@ function NewDealDialog() {
     name: '', target: '', vertical: VERTICALS[0], country: 'México',
     stage: 'sourcing' as DealStage, thesis: '',
     ask: '', ebitda: '', sales: '',
+    tradeName: '', legalName: '', taxId: '',
+    sellerName: '', contactPhone: '', whatsapp: '', email: '', address: '',
   });
 
   const submit = () => {
     createDeal({
       name: form.name || 'Nuevo Deal',
-      target: form.target,
+      target: form.target || form.tradeName,
       vertical: form.vertical,
       country: form.country,
       stage: form.stage,
       thesis: form.thesis,
+      company: {
+        ...emptyCompany(),
+        tradeName: form.tradeName,
+        legalName: form.legalName,
+        taxId: form.taxId,
+        sellerName: form.sellerName,
+        contactPhone: form.contactPhone,
+        whatsapp: form.whatsapp,
+        email: form.email,
+        address: form.address,
+      },
       inputs: {
         ...emptyInputs(),
         ask: Number(form.ask) || 0,
@@ -53,7 +66,9 @@ function NewDealDialog() {
       },
     });
     setOpen(false);
-    setForm({ name:'', target:'', vertical:VERTICALS[0], country:'México', stage:'sourcing', thesis:'', ask:'', ebitda:'', sales:'' });
+    setForm({ name:'', target:'', vertical:VERTICALS[0], country:'México', stage:'sourcing', thesis:'',
+      ask:'', ebitda:'', sales:'',
+      tradeName:'', legalName:'', taxId:'', sellerName:'', contactPhone:'', whatsapp:'', email:'', address:'' });
   };
 
   return (
@@ -61,50 +76,99 @@ function NewDealDialog() {
       <DialogTrigger asChild>
         <Button className="gap-2"><Plus className="w-4 h-4" /> Nuevo Deal</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Crear nuevo Deal</DialogTitle>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <Label>Nombre del proyecto (codename)</Label>
-            <Input value={form.name} onChange={e=>setForm({...form, name:e.target.value})} placeholder="Project Halo" />
-          </div>
+        <div className="space-y-5">
+          {/* Proyecto */}
           <div>
-            <Label>Target (empresa)</Label>
-            <Input value={form.target} onChange={e=>setForm({...form, target:e.target.value})} />
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Proyecto</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <Label>Codename</Label>
+                <Input value={form.name} onChange={e=>setForm({...form, name:e.target.value})} placeholder="Project Halo" />
+              </div>
+              <div>
+                <Label>Vertical</Label>
+                <Select value={form.vertical} onValueChange={v=>setForm({...form, vertical:v})}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{VERTICALS.map(v=> <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Etapa</Label>
+                <Select value={form.stage} onValueChange={v=>setForm({...form, stage:v as DealStage})}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{STAGES.map(s=> <SelectItem key={s} value={s}>{STAGE_META[s].label}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
+
+          {/* Empresa */}
           <div>
-            <Label>Vertical</Label>
-            <Select value={form.vertical} onValueChange={v=>setForm({...form, vertical:v})}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{VERTICALS.map(v=> <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent>
-            </Select>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Información de la empresa</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Nombre comercial</Label>
+                <Input value={form.tradeName} onChange={e=>setForm({...form, tradeName:e.target.value})} placeholder="Halo Marketing" />
+              </div>
+              <div>
+                <Label>Razón social</Label>
+                <Input value={form.legalName} onChange={e=>setForm({...form, legalName:e.target.value})} placeholder="Halo Performance S.A.C." />
+              </div>
+              <div>
+                <Label>RUC / RFC / NIT</Label>
+                <Input value={form.taxId} onChange={e=>setForm({...form, taxId:e.target.value})} />
+              </div>
+              <div>
+                <Label>País</Label>
+                <Input value={form.country} onChange={e=>setForm({...form, country:e.target.value})} />
+              </div>
+              <div>
+                <Label>Nombre del vendedor</Label>
+                <Input value={form.sellerName} onChange={e=>setForm({...form, sellerName:e.target.value})} />
+              </div>
+              <div>
+                <Label>Número de contacto</Label>
+                <Input value={form.contactPhone} onChange={e=>setForm({...form, contactPhone:e.target.value})} placeholder="+51 999 999 999" />
+              </div>
+              <div>
+                <Label>WhatsApp</Label>
+                <Input value={form.whatsapp} onChange={e=>setForm({...form, whatsapp:e.target.value})} placeholder="+51 999 999 999" />
+              </div>
+              <div>
+                <Label>Email</Label>
+                <Input type="email" value={form.email} onChange={e=>setForm({...form, email:e.target.value})} />
+              </div>
+              <div className="col-span-2">
+                <Label>Dirección</Label>
+                <Input value={form.address} onChange={e=>setForm({...form, address:e.target.value})} />
+              </div>
+            </div>
           </div>
+
+          {/* Financiero */}
           <div>
-            <Label>País</Label>
-            <Input value={form.country} onChange={e=>setForm({...form, country:e.target.value})} />
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Datos financieros</h4>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Ask ($)</Label>
+                <Input type="number" value={form.ask} onChange={e=>setForm({...form, ask:e.target.value})} />
+              </div>
+              <div>
+                <Label>EBITDA ($)</Label>
+                <Input type="number" value={form.ebitda} onChange={e=>setForm({...form, ebitda:e.target.value})} />
+              </div>
+              <div>
+                <Label>Revenue ($)</Label>
+                <Input type="number" value={form.sales} onChange={e=>setForm({...form, sales:e.target.value})} />
+              </div>
+            </div>
           </div>
+
           <div>
-            <Label>Etapa</Label>
-            <Select value={form.stage} onValueChange={v=>setForm({...form, stage:v as DealStage})}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{STAGES.map(s=> <SelectItem key={s} value={s}>{STAGE_META[s].label}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Ask ($)</Label>
-            <Input type="number" value={form.ask} onChange={e=>setForm({...form, ask:e.target.value})} />
-          </div>
-          <div>
-            <Label>EBITDA ($)</Label>
-            <Input type="number" value={form.ebitda} onChange={e=>setForm({...form, ebitda:e.target.value})} />
-          </div>
-          <div>
-            <Label>Revenue ($)</Label>
-            <Input type="number" value={form.sales} onChange={e=>setForm({...form, sales:e.target.value})} />
-          </div>
-          <div className="col-span-2">
             <Label>Tesis de inversión</Label>
             <Textarea rows={3} value={form.thesis} onChange={e=>setForm({...form, thesis:e.target.value})} />
           </div>

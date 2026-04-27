@@ -141,6 +141,43 @@ export default function WarRoom() {
           <PeriodSelector period={period} onPeriodChange={setPeriod} />
         </div>
 
+        {/* Simulation banner — visible cuando hay overrides activos en cualquier agencia */}
+        {simulatedCount > 0 && (
+          <div className="glass-card border-accent/40 bg-accent/5 p-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-accent/15">
+                <FlaskConical className="w-4 h-4 text-accent" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-accent">
+                  Modo Simulación activo · {simulatedCount} agencia{simulatedCount === 1 ? '' : 's'} con overrides
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Los KPIs, matriz de capital, capacidad de apalancamiento y simulaciones de escalamiento usan los valores simulados.
+                  {' '}
+                  {simulatedIds.slice(0, 4).map(sid => {
+                    const a = mockAgencies.find(x => x.id === sid);
+                    if (!a) return null;
+                    return (
+                      <Link key={sid} to={`/agencies/${sid}`} className="text-accent hover:underline mr-2 font-mono text-[10px]">
+                        {a.name}
+                      </Link>
+                    );
+                  })}
+                  {simulatedIds.length > 4 && <span className="text-muted-foreground/70">+{simulatedIds.length - 4} más</span>}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={clearAll}
+              className="text-[11px] text-muted-foreground hover:text-foreground underline px-2 py-1"
+            >
+              Limpiar todas las simulaciones
+            </button>
+          </div>
+        )}
+
         {/* Controls */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="glass-card p-5">

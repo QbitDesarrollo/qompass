@@ -469,7 +469,8 @@ export default function WarRoom() {
                     {!exhausted && (
                       <p className="text-[10px] text-muted-foreground">
                         Δ servicio anual: {formatCurrency(r.maxDebtService)} − {formatCurrency(r.agency.debtService)} = <span className="text-foreground">+{formatCurrency(r.additionalDebtService)}/año</span>
-                        <br />× 6 años de amortización ⇒ <span className="text-primary">{formatCurrency(r.additionalDebt)}</span> de principal
+                        <br />⇒ PV @ {amortYears}a · {annualRate.toFixed(2)}% = <span className="text-primary">{formatCurrency(r.additionalDebt)}</span>
+                        <br />Intereses 1er año ≈ <span className="text-accent">{formatCurrency(r.annualInterestEst)}</span>
                       </p>
                     )}
                   </div>
@@ -477,6 +478,12 @@ export default function WarRoom() {
                 <div className="glass-card px-4 py-3 text-[11px] text-muted-foreground">
                   <span className="text-foreground font-semibold">¿Por qué la capacidad supera al Debt Svc Máx?</span>{' '}
                   Las 3 primeras tarjetas son <span className="text-foreground">flujos anuales</span> (lo que pagas cada año). La <span className="text-primary">Capacidad Adicional</span> es el <span className="text-foreground">principal de deuda nueva</span> (stock) que ese flujo extra puede sostener: <span className="font-mono">(Debt Svc Máx − Debt Service Actual) × 6x</span>, donde 6x ≈ deuda corporativa amortizable a ~6 años.
+                  <br /><br />
+                  <span className="text-foreground font-semibold">Vehículo financiero:</span>{' '}
+                  Plazo <span className="font-mono text-primary">{amortYears} años</span> · tasa <span className="font-mono text-primary">{annualRate.toFixed(2)}%</span> anual.
+                  Capacidad = Valor Presente de la anualidad
+                  <span className="font-mono"> PV = pago × (1 − (1 + i)<sup>−n</sup>) / i</span>.
+                  Ajusta los sliders para reflejar revolventes (corto plazo, tasas mensuales variables), bullets (1–3 años), term loans (5–7 años) o senior notes (10+ años).
                 </div>
 
                 {/* Acquisition coverage widget */}

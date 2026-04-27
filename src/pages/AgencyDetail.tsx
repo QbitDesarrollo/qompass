@@ -148,7 +148,7 @@ export default function AgencyDetail() {
 
   const { overridesByAgency, setAgencyOverrides, clearAgency, setSimulationEnabled, isSimulationEnabled } = useSimulation();
   const simulating = baseAgency ? isSimulationEnabled(baseAgency.id) : false;
-  const [period, setPeriod] = useState<Period>(() => currentPeriod('month'));
+  const [period, setPeriod] = useState<Period>(() => currentPeriod('last12'));
   
   if (!baseAgency) {
     return (

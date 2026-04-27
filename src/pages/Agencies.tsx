@@ -21,7 +21,7 @@ export default function AgenciesPage() {
   const [filterNivel, setFilterNivel] = useState<NivelIntegracion | 0>(0);
   const [sortKey, setSortKey] = useState<SortKey>('ebitda');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
-  const [period, setPeriod] = useState<Period>(() => currentPeriod('month'));
+  const [period, setPeriod] = useState<Period>(() => currentPeriod('last12'));
 
   // Métricas financieras agregadas por agencia para el periodo seleccionado
   const periodMetrics = useMemo(() => getAllAgencyMetrics(period), [period]);

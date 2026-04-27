@@ -367,6 +367,17 @@ export default function WarRoom() {
           </div>
         )}
 
+        {!simulation && (
+          <div className="glass-card p-6 border-dashed border-accent/30 text-center">
+            <Sparkles className="w-6 h-6 text-accent mx-auto mb-2" />
+            <p className="text-sm font-semibold text-foreground">Selecciona un Escenario de Escalamiento</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Activa <span className="font-mono text-accent">N3→N2</span> o <span className="font-mono text-accent">N2→N1</span> para ver los KPIs de decisión:
+              EBITDA Incremental · Costo de Adquisición · Arbitraje de Múltiplo · Nueva Valorización · Reducción de IRF · Poder Estructural.
+            </p>
+          </div>
+        )}
+
         {/* Capacidad de Apalancamiento — siempre visible para la vertical */}
         <div className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">

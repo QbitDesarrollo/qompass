@@ -260,18 +260,34 @@ function AgencyAction({
    Matrix 2x2: Capacidad (X) vs EBITDA (Y)
 ============================================================ */
 function PriorityMatrix({ priorities, onSelect, selectedId, simulatedIds }: { priorities: CapitalPriority[]; onSelect?: (id: string) => void; selectedId?: string | null; simulatedIds: Set<string> }) {
-  const maxEbitda = Math.max(1, ...priorities.map(p => p.ebitda));
-  const maxCap = Math.max(1, ...priorities.map(p => p.additionalDebt));
-  // Medianas (mismas que usa computeCapitalPriorities para asignar
-  // cuadrantes). Se usan para colocar las líneas divisorias en la
-  // posición exacta que separa los cuadrantes — así el cuadrante
-  // visual donde cae cada punto coincide con su clasificación.
-  const sortedEb = [...priorities.map(p => p.ebitda)].sort((a, b) => a - b);
-  const sortedCap = [...priorities.map(p => p.additionalDebt)].sort((a, b) => a - b);
-  const medEbitda = sortedEb[Math.floor(sortedEb.length / 2)] ?? 0;
-  const medCap = sortedCap[Math.floor(sortedCap.length / 2)] ?? 0;
-  const xSplitPct = Math.min(95, Math.max(5, (medCap / maxCap) * 100));
-  const ySplitPct = Math.min(95, Math.max(5, (medEbitda / maxEbitda) * 100));
+  /**
+   * Cuadrante simétrico clásico (50/50). La clasificación se hace
+   * por mediana en quantum-engine, pero aquí re-mapeamos cada punto
+   * a coordenadas RELATIVAS a su propio cuadrante: dentro de su
+   * mitad horizontal y vertical, el punto se ubica según su rank
+   * (mejor → más al borde). Así el punto SIEMPRE cae sobre el
+   * cuadrante que coincide con su badge.
+   */
+  const byQuadrant = priorities.reduce((acc, p) => {
+    (acc[p.quadrant] ||= []).push(p);
+    return acc;
+  }, {} as Record<PriorityQuadrant, CapitalPriority[]>);
+
+  // Posición normalizada (0..1) dentro del cuadrante para cada agencia.
+  // Más EBITDA → más arriba dentro de su mitad. Más capacidad → más a la derecha.
+  const positions = new Map<string, { qx: number; qy: number }>();
+  (Object.keys(byQuadrant) as PriorityQuadrant[]).forEach(q => {
+    const list = byQuadrant[q];
+    const ebs = list.map(p => p.ebitda);
+    const caps = list.map(p => p.additionalDebt);
+    const minE = Math.min(...ebs), maxE = Math.max(...ebs);
+    const minC = Math.min(...caps), maxC = Math.max(...caps);
+    list.forEach(p => {
+      const qx = caps.length > 1 && maxC > minC ? (p.additionalDebt - minC) / (maxC - minC) : 0.5;
+      const qy = ebs.length > 1 && maxE > minE ? (p.ebitda - minE) / (maxE - minE) : 0.5;
+      positions.set(p.agency.id, { qx, qy });
+    });
+  });
 
   const cells: { q: PriorityQuadrant; title: string; subtitle: string; pos: 'top' | 'bottom'; side: 'left' | 'right' }[] = [
     { q: 'optimize',    title: 'Optimizar / Refinanciar', subtitle: 'Alto EBITDA · Baja capacidad',  pos: 'top' as const, side: 'left' as const },
@@ -294,36 +310,52 @@ function PriorityMatrix({ priorities, onSelect, selectedId, simulatedIds }: { pr
           <span>EBITDA bajo&nbsp;&nbsp;←&nbsp;&nbsp;<span className="text-foreground">EBITDA</span>&nbsp;&nbsp;→&nbsp;&nbsp;alto</span>
         </div>
         <div className="flex-1">
-          <div className="relative aspect-[2/1] w-full rounded-lg border border-border bg-secondary/20 overflow-hidden">
+          <div className="relative aspect-[2/1] w-full rounded-lg border-2 border-border bg-secondary/20 overflow-hidden">
         {/* Quadrant tints */}
         {cells.map(c => {
           const tone = TONE_CLASSES[QUADRANT_META[c.q].tone];
           const style: React.CSSProperties = {
-            left: c.side === 'left' ? 0 : `${xSplitPct}%`,
-            width: c.side === 'left' ? `${xSplitPct}%` : `${100 - xSplitPct}%`,
-            top: c.pos === 'top' ? 0 : `${100 - ySplitPct}%`,
-            height: c.pos === 'top' ? `${ySplitPct}%` : `${ySplitPct}%`,
+            left: c.side === 'left' ? 0 : '50%',
+            width: '50%',
+            top: c.pos === 'top' ? 0 : '50%',
+            height: '50%',
           };
           return (
-            <div key={c.q} className={`absolute ${tone.bg} border border-border/40`} style={style}>
+            <div key={c.q} className={`absolute ${tone.bg} border border-border/30`} style={style}>
               <div className="p-2 flex items-start justify-between gap-1">
                 <div>
-                  <div className={`text-[10px] font-semibold ${tone.text}`}>{c.title}</div>
+                  <div className={`text-[10px] font-semibold ${tone.text} flex items-center gap-1`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${tone.dot}`} />
+                    {c.title}
+                  </div>
                   <div className="text-[9px] text-muted-foreground">{c.subtitle}</div>
+                  <div className="text-[9px] font-mono text-muted-foreground mt-0.5">
+                    {(byQuadrant[c.q]?.length || 0)} agencias
+                  </div>
                 </div>
                 <QuadrantInfoTooltip q={c.q} />
               </div>
             </div>
           );
         })}
-        {/* Axis lines en la mediana */}
-        <div className="absolute inset-x-0 border-t border-border/60" style={{ top: `${100 - ySplitPct}%` }} />
-        <div className="absolute inset-y-0 border-l border-border/60" style={{ left: `${xSplitPct}%` }} />
+        {/* Axis lines centrales — cuadrante simétrico */}
+        <div className="absolute inset-x-0 top-1/2 border-t-2 border-border" />
+        <div className="absolute inset-y-0 left-1/2 border-l-2 border-border" />
 
         {/* Points */}
         {priorities.map(p => {
-          const x = (p.additionalDebt / maxCap) * 100;
-          const y = (Math.max(0, p.ebitda) / maxEbitda) * 100;
+          // Mapear coordenada local del cuadrante (0..1) al rango global
+          // del cuadrante correspondiente (50% del lienzo). Padding del 12%
+          // dentro de cada cuadrante para evitar puntos pegados al borde.
+          const pos = positions.get(p.agency.id) ?? { qx: 0.5, qy: 0.5 };
+          const PAD = 0.18; // margen interno del cuadrante
+          const local = (v: number) => PAD + v * (1 - 2 * PAD);
+          // X: deploy/investigate están en la mitad derecha (50–100%);
+          //    optimize/restructure en la izquierda (0–50%).
+          const isRight = p.quadrant === 'deploy' || p.quadrant === 'investigate';
+          const isTop = p.quadrant === 'deploy' || p.quadrant === 'optimize';
+          const x = (isRight ? 50 : 0) + local(pos.qx) * 50;
+          const y = (isTop ? 50 : 0) + local(pos.qy) * 50;
           const tone = TONE_CLASSES[p.action.tone];
           const size = 8 + (p.score / 100) * 14; // 8-22px
           const isSelected = selectedId === p.agency.id;

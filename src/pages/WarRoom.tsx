@@ -399,23 +399,32 @@ export default function WarRoom() {
 
         {/* Capacidad de Apalancamiento — siempre visible para la vertical */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-start justify-between flex-wrap gap-3">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Banknote className="w-4 h-4 text-primary" />
               Capacidad de Apalancamiento {selectedAgencyId ? `— ${leverage.rows.find(r => r.agency.id === selectedAgencyId)?.agency.name}` : `— ${selectedVertical}`}
             </h2>
-            <div className="flex items-center gap-3 glass-card px-4 py-2">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">DSCR Objetivo</span>
-              <div className="flex items-center gap-2 min-w-[180px]">
-                <Slider
-                  value={[targetDSCR]}
-                  onValueChange={([v]) => setTargetDSCR(v)}
-                  min={1.25}
-                  max={2}
-                  step={0.05}
-                  className="w-32"
-                />
-                <span className="text-sm font-bold font-mono text-accent w-12 text-right">{targetDSCR.toFixed(2)}x</span>
+            <div className="glass-card p-3 grid grid-cols-1 sm:grid-cols-3 gap-4 min-w-[320px]">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">DSCR Objetivo</span>
+                  <span className="text-xs font-bold font-mono text-accent">{targetDSCR.toFixed(2)}x</span>
+                </div>
+                <Slider value={[targetDSCR]} onValueChange={([v]) => setTargetDSCR(v)} min={1.25} max={2} step={0.05} />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Plazo</span>
+                  <span className="text-xs font-bold font-mono text-primary">{amortYears} años</span>
+                </div>
+                <Slider value={[amortYears]} onValueChange={([v]) => setAmortYears(v)} min={1} max={15} step={1} />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Tasa Anual</span>
+                  <span className="text-xs font-bold font-mono text-primary">{annualRate.toFixed(2)}%</span>
+                </div>
+                <Slider value={[annualRate]} onValueChange={([v]) => setAnnualRate(v)} min={0} max={25} step={0.25} />
               </div>
             </div>
           </div>

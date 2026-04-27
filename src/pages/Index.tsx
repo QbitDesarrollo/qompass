@@ -4,6 +4,7 @@ import AppLayout from '@/components/AppLayout';
 import KPICard from '@/components/KPICard';
 import { PowerMapChart, VerticalDistributionChart } from '@/components/DashboardCharts';
 import { NivelBadge, AscensionBadge, DSCRBadge } from '@/components/StatusBadges';
+import CapitalPriorityWidget from '@/components/CapitalPriorityWidget';
 import { mockAgencies } from '@/lib/mock-data';
 import { formatCurrency, formatPercent, getConsolidatedEbitda, getAscensionOpportunity, calcIPE, calcIPP, calcIPC, calcDSCR, getDSCRStatus, NIVELES } from '@/lib/quantum-engine';
 import { Link } from 'react-router-dom';
@@ -119,6 +120,10 @@ export default function Dashboard() {
           <PowerMapChart />
           <VerticalDistributionChart />
         </div>
+
+        {/* Capital Priority — compact */}
+        <CapitalPriorityWidget variant="compact" />
+
 
         {/* Top Agencies Table */}
         <div className="glass-card p-5">

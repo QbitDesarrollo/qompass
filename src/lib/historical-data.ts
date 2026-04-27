@@ -426,3 +426,118 @@ export function getAgencyPeriodSeries(agencyId: string, endPeriod: Period, count
   }
   return out;
 }
+
+/* ============================================================
+   Financial breakdown — Debt Service split & P&L cascade
+   ============================================================
+   Supuestos transparentes (visibles en UI):
+    - Tasa de interés implícita anual sobre la deuda: 9.0%
+    - Mix Debt Service = Intereses (calculados) + Principal (residual)
+      con piso del 35% para principal (deuda amortizable estándar).
+    - D&A ≈ 3.0% de Revenue (proxy de CAPEX recurrente).
+    - Tasa efectiva de impuestos: 25%.
+    - Net Income = (EBITDA − D&A − Intereses) × (1 − tax)
+    - Validación contable:
+        EBITDA  ≈  Net Income + Impuestos + Intereses + D&A
+        OCF     ≈  EBITDA × (1 − tax_efectivo_sobre_EBIT) − Δ WC
+      Aquí OCF se modela como EBITDA neto de impuestos y de un consumo
+      moderado de working capital — NUNCA igual a Net Income.
+*/
+
+export const FIN_ASSUMPTIONS = {
+  interestRate: 0.09,
+  minPrincipalShare: 0.35,
+  daRate: 0.03,
+  taxRate: 0.25,
+};
+
+export interface DebtServiceBreakdown {
+  total: number;
+  interest: number;
+  principal: number;
+  /** Deuda implícita estimada = intereses / tasa */
+  impliedDebt: number;
+  interestShare: number;   // 0..1
+  principalShare: number;  // 0..1
+}
+
+export interface FinancialCascade {
+  revenue: number;
+  ebitda: number;
+  da: number;             // Depreciación & Amortización
+  ebit: number;           // EBITDA − D&A
+  interest: number;       // del Debt Service
+  ebt: number;            // EBIT − Intereses
+  taxes: number;          // EBT × tax (si EBT>0)
+  netIncome: number;      // EBT − impuestos
+  // Reconciliación
+  ebitdaCheck: number;    // netIncome + taxes + interest + da
+  ebitdaCheckDelta: number; // ebitda − ebitdaCheck (debe ≈ 0)
+  // OCF observado vs teórico
+  ocfObserved: number;
+  ocfTheoretical: number; // EBITDA − impuestos (proxy sin Δ WC)
+  ocfDelta: number;       // observado − teórico (Δ WC implícito)
+  dscr: number;
+}
+
+/** Estimación del componente de intereses dentro de un Debt Service total. */
+export function splitDebtService(
+  debtServiceAnnual: number,
+  ebitdaAnnual: number,
+): DebtServiceBreakdown {
+  if (debtServiceAnnual <= 0) {
+    return { total: 0, interest: 0, principal: 0, impliedDebt: 0, interestShare: 0, principalShare: 0 };
+  }
+  // Heurística: agencias con poco EBITDA suelen tener una mayor proporción
+  // de intereses (deuda más cara o más larga). Limitamos intereses al
+  // (1 − minPrincipalShare) del DS para mantener un mix realista.
+  const maxInterestShare = 1 - FIN_ASSUMPTIONS.minPrincipalShare; // 0.65
+  // Punto de partida: asumimos que ~55% del DS son intereses si EBITDA
+  // es bajo (DS/EBITDA > 0.5), y ~40% si la cobertura es muy holgada.
+  const cover = ebitdaAnnual > 0 ? debtServiceAnnual / ebitdaAnnual : 1;
+  const baseInterestShare = Math.min(maxInterestShare, 0.40 + Math.min(0.25, cover * 0.30));
+  const interest = debtServiceAnnual * baseInterestShare;
+  const principal = debtServiceAnnual - interest;
+  const impliedDebt = interest / FIN_ASSUMPTIONS.interestRate;
+  return {
+    total: debtServiceAnnual,
+    interest,
+    principal,
+    impliedDebt,
+    interestShare: baseInterestShare,
+    principalShare: 1 - baseInterestShare,
+  };
+}
+
+/** Construye la cascada P&L y la reconciliación EBITDA ↔ Net Income ↔ OCF. */
+export function buildFinancialCascade(m: {
+  revenue: number;
+  ebitda: number;
+  operatingCashflow: number;
+  debtService: number;
+}): FinancialCascade {
+  const ds = splitDebtService(m.debtService, m.ebitda);
+  const da = m.revenue * FIN_ASSUMPTIONS.daRate;
+  const ebit = m.ebitda - da;
+  const ebt = ebit - ds.interest;
+  const taxes = ebt > 0 ? ebt * FIN_ASSUMPTIONS.taxRate : 0;
+  const netIncome = ebt - taxes;
+  const ebitdaCheck = netIncome + taxes + ds.interest + da;
+  const ocfTheoretical = m.ebitda - taxes; // EBITDA neto de impuestos (sin Δ WC)
+  return {
+    revenue: m.revenue,
+    ebitda: m.ebitda,
+    da,
+    ebit,
+    interest: ds.interest,
+    ebt,
+    taxes,
+    netIncome,
+    ebitdaCheck,
+    ebitdaCheckDelta: m.ebitda - ebitdaCheck,
+    ocfObserved: m.operatingCashflow,
+    ocfTheoretical,
+    ocfDelta: m.operatingCashflow - ocfTheoretical,
+    dscr: m.debtService > 0 ? m.operatingCashflow / m.debtService : Infinity,
+  };
+}

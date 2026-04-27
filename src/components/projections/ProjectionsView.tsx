@@ -14,6 +14,7 @@ import {
   deriveAssumptionsFromHistory, deriveGroupAssumptions,
   baselineFromHistory, groupBaseline, getStartFromHistory,
   getAgencyHistory, getTransitionPlan, TransitionPlan,
+  RevenuePlan, RevenuePlanYear,
 } from '@/lib/projections/projections-engine';
 import { ANCHOR_YEAR, ANCHOR_MONTH } from '@/lib/historical-data';
 
@@ -54,11 +55,14 @@ export default function ProjectionsView({ agency }: Props) {
   const [assumptions, setAssumptions] = useState<Assumptions>(initialAssumptions);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiRationale, setAiRationale] = useState<string | null>(null);
+  const [inputMode, setInputMode] = useState<'pct' | 'abs'>('pct');
+  const [revenuePlan, setRevenuePlan] = useState<RevenuePlan>([]);
 
   // Sync cuando cambia la agencia
   useEffect(() => {
     setAssumptions(initialAssumptions);
     setAiRationale(null);
+    setRevenuePlan([]);
   }, [initialAssumptions]);
 
   const scenarioAssumptions = useMemo(() => applyScenario(assumptions, scenario), [assumptions, scenario]);
@@ -66,13 +70,53 @@ export default function ProjectionsView({ agency }: Props) {
   const result = useMemo(() => forecast({
     baseline, startYear: start.startYear, startMonth: start.startMonth,
     horizon, assumptions: scenarioAssumptions, scenario,
-  }), [baseline, start, horizon, scenarioAssumptions, scenario]);
+    revenuePlan: inputMode === 'abs' ? revenuePlan : undefined,
+  }), [baseline, start, horizon, scenarioAssumptions, scenario, inputMode, revenuePlan]);
 
   // Calcular los 3 escenarios para overlay
   const allScenarios = useMemo(() => SCENARIOS.map(s => forecast({
     baseline, startYear: start.startYear, startMonth: start.startMonth,
     horizon, assumptions: applyScenario(assumptions, s), scenario: s,
-  })), [baseline, start, horizon, assumptions]);
+    revenuePlan: inputMode === 'abs' ? revenuePlan : undefined,
+  })), [baseline, start, horizon, assumptions, inputMode, revenuePlan]);
+
+  // Años cubiertos por el horizonte (mes siguiente al ancla → +horizon)
+  const planYears = useMemo(() => {
+    const ys = new Set<number>();
+    for (let i = 1; i <= horizon; i++) {
+      const total = start.startYear * 12 + (start.startMonth - 1) + i;
+      ys.add(Math.floor(total / 12));
+    }
+    return Array.from(ys).sort();
+  }, [start, horizon]);
+
+  // Sugerir un revenue anual cuando el usuario activa el modo absoluto y aún no hay plan
+  useEffect(() => {
+    if (inputMode !== 'abs') return;
+    setRevenuePlan(prev => {
+      const next = [...prev];
+      planYears.forEach(y => {
+        if (!next.find(p => p.year === y)) {
+          next.push({ year: y, annual: Math.round(baseline.revenue * 12) });
+        }
+      });
+      // limpiar años fuera del horizonte
+      return next.filter(p => planYears.includes(p.year));
+    });
+  }, [inputMode, planYears, baseline.revenue]);
+
+  const updatePlanYear = (year: number, patch: Partial<RevenuePlanYear>) => {
+    setRevenuePlan(prev => prev.map(p => p.year === year ? { ...p, ...patch } : p));
+  };
+  const updatePlanQuarter = (year: number, q: 1|2|3|4, value: number | null) => {
+    setRevenuePlan(prev => prev.map(p => {
+      if (p.year !== year) return p;
+      const quarters = { ...(p.quarters || {}) };
+      if (value === null || !isFinite(value) || value <= 0) delete quarters[q];
+      else quarters[q] = value;
+      return { ...p, quarters };
+    }));
+  };
 
   const chartData = useMemo(() => result.points.map((p, i) => ({
     label: formatYM(p.ym),
@@ -205,8 +249,30 @@ export default function ProjectionsView({ agency }: Props) {
       <div className="glass-card p-4 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">Supuestos del modelo</h3>
-          <span className="text-[10px] text-muted-foreground font-mono">Base · ajusta y se aplican los multiplicadores del escenario</span>
+          <div className="flex items-center gap-3">
+            <div className="inline-flex rounded-md border border-border bg-secondary/40 p-0.5">
+              <button
+                onClick={() => setInputMode('pct')}
+                className={`px-2.5 py-1 text-[11px] font-medium rounded transition-colors ${inputMode === 'pct' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                % Variación
+              </button>
+              <button
+                onClick={() => setInputMode('abs')}
+                className={`px-2.5 py-1 text-[11px] font-medium rounded transition-colors ${inputMode === 'abs' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                $ Plan
+              </button>
+            </div>
+            <span className="text-[10px] text-muted-foreground font-mono">
+              {inputMode === 'pct'
+                ? 'Base · ajusta y se aplican los multiplicadores del escenario'
+                : 'Plan absoluto anual (override por trimestre opcional)'}
+            </span>
+          </div>
         </div>
+
+        {inputMode === 'pct' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <AssumptionSlider label="Revenue growth (mensual)" value={assumptions.revenueGrowth} min={-0.05} max={0.06} step={0.001} format={v => `${(v * 100).toFixed(2)}%`}
             onChange={v => setAssumptions(a => ({ ...a, revenueGrowth: v }))} />
@@ -219,6 +285,16 @@ export default function ProjectionsView({ agency }: Props) {
           <AssumptionSlider label="Debt service growth (mensual)" value={assumptions.debtServiceGrowth} min={-0.02} max={0.03} step={0.001} format={v => `${(v * 100).toFixed(2)}%`}
             onChange={v => setAssumptions(a => ({ ...a, debtServiceGrowth: v }))} />
         </div>
+        ) : (
+          <RevenuePlanEditor
+            years={planYears}
+            plan={revenuePlan}
+            onAnnualChange={(y, v) => updatePlanYear(y, { annual: v })}
+            onQuarterChange={updatePlanQuarter}
+            assumptions={assumptions}
+            onAssumptionChange={(patch) => setAssumptions(a => ({ ...a, ...patch }))}
+          />
+        )}
       </div>
 
       {/* Charts: tabs */}
@@ -347,6 +423,134 @@ function AssumptionSlider({ label, value, min, max, step, format, onChange, unit
         <span>{format(min)}</span>
         <span>{format(max)}</span>
       </div>
+    </div>
+  );
+}
+
+/* ---- Editor de plan absoluto de Revenue (anual + override por Q) ---- */
+function RevenuePlanEditor({
+  years, plan, onAnnualChange, onQuarterChange, assumptions, onAssumptionChange,
+}: {
+  years: number[];
+  plan: RevenuePlan;
+  onAnnualChange: (year: number, value: number) => void;
+  onQuarterChange: (year: number, q: 1 | 2 | 3 | 4, value: number | null) => void;
+  assumptions: Assumptions;
+  onAssumptionChange: (patch: Partial<Assumptions>) => void;
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="space-y-4">
+        {years.map(year => {
+          const py = plan.find(p => p.year === year);
+          const annual = py?.annual ?? 0;
+          const overSum = ([1, 2, 3, 4] as const).reduce((s, q) => s + (py?.quarters?.[q] ?? 0), 0);
+          const remaining = annual - overSum;
+          const overflow = overSum > annual && annual > 0;
+          return (
+            <div key={year} className="rounded-md border border-border bg-secondary/20 p-3 space-y-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-foreground font-mono">{year}</span>
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Revenue Plan Anual</span>
+                </div>
+                <CurrencyInput
+                  value={annual}
+                  onCommit={v => onAnnualChange(year, v)}
+                  className="w-44"
+                />
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {([1, 2, 3, 4] as const).map(q => {
+                  const qVal = py?.quarters?.[q];
+                  const placeholder = annual > 0
+                    ? Math.round((annual / 4)).toLocaleString('en-US')
+                    : '—';
+                  return (
+                    <div key={q} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-muted-foreground font-mono">Q{q}</span>
+                        {qVal !== undefined && (
+                          <button
+                            type="button"
+                            onClick={() => onQuarterChange(year, q, null)}
+                            className="text-[9px] text-muted-foreground hover:text-destructive transition-colors"
+                          >
+                            limpiar
+                          </button>
+                        )}
+                      </div>
+                      <CurrencyInput
+                        value={qVal ?? null}
+                        placeholder={`auto · ${placeholder}`}
+                        onCommit={v => onQuarterChange(year, q, v > 0 ? v : null)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className={`text-[10px] font-mono ${overflow ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {overflow
+                  ? `⚠ Suma de Q (${overSum.toLocaleString('en-US')}) supera el anual (${annual.toLocaleString('en-US')})`
+                  : overSum > 0
+                    ? `Override Q: $${overSum.toLocaleString('en-US')} · Auto-distribuido: $${remaining.toLocaleString('en-US')}`
+                    : 'Sin overrides — distribuido mensualmente con estacionalidad'}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="border-t border-border pt-4">
+        <p className="text-[10px] text-muted-foreground mb-3 uppercase tracking-wider">
+          Márgenes derivados (aplicados sobre el revenue del plan)
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <AssumptionSlider label="AGI margin" value={assumptions.agiMargin} min={0.15} max={0.9} step={0.01} format={v => `${(v * 100).toFixed(0)}%`}
+            onChange={v => onAssumptionChange({ agiMargin: v })} />
+          <AssumptionSlider label="EBITDA margin" value={assumptions.ebitdaMargin} min={0.02} max={0.5} step={0.005} format={v => `${(v * 100).toFixed(1)}%`}
+            onChange={v => onAssumptionChange({ ebitdaMargin: v })} />
+          <AssumptionSlider label="OCF / EBITDA" value={assumptions.ocfConversion} min={0.3} max={1.4} step={0.01} format={v => `${(v * 100).toFixed(0)}%`}
+            onChange={v => onAssumptionChange({ ocfConversion: v })} />
+          <AssumptionSlider label="Debt service growth (mensual)" value={assumptions.debtServiceGrowth} min={-0.02} max={0.03} step={0.001} format={v => `${(v * 100).toFixed(2)}%`}
+            onChange={v => onAssumptionChange({ debtServiceGrowth: v })} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CurrencyInput({
+  value, onCommit, placeholder, className = '',
+}: { value: number | null; onCommit: (v: number) => void; placeholder?: string; className?: string }) {
+  const display = value === null || value === 0 ? '' : String(value);
+  const [text, setText] = useState<string>(display);
+  useEffect(() => { setText(value === null || value === 0 ? '' : String(value)); }, [value]);
+  const commit = (raw: string) => {
+    const cleaned = raw.replace(/[^0-9.-]/g, '');
+    const num = parseFloat(cleaned);
+    if (!isFinite(num) || num < 0) {
+      onCommit(0);
+      setText('');
+      return;
+    }
+    const rounded = Math.round(num);
+    onCommit(rounded);
+    setText(String(rounded));
+  };
+  return (
+    <div className={`relative ${className}`}>
+      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground font-mono pointer-events-none">$</span>
+      <Input
+        type="text"
+        inputMode="numeric"
+        value={text}
+        placeholder={placeholder}
+        onChange={e => setText(e.target.value)}
+        onBlur={e => commit(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        className="h-7 pl-5 pr-2 text-xs font-mono text-right"
+      />
     </div>
   );
 }

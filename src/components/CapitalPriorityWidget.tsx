@@ -1,9 +1,10 @@
 import { useMemo, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Target, Zap, AlertTriangle, Wrench, Search, ArrowRight, Info } from 'lucide-react';
+import { Target, Zap, AlertTriangle, Wrench, Search, ArrowRight, Info, FlaskConical } from 'lucide-react';
 import { mockAgencies } from '@/lib/mock-data';
 import { computeCapitalPriorities, formatCurrency, QUADRANT_META, PriorityQuadrant, CapitalPriority } from '@/lib/quantum-engine';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useSimulation } from '@/lib/simulation-store';
 
 const TONE_CLASSES: Record<'primary' | 'accent' | 'warning' | 'danger', { badge: string; dot: string; ring: string; text: string; bg: string }> = {
   primary: { badge: 'bg-primary/15 text-primary border-primary/30', dot: 'bg-primary', ring: 'ring-primary/40', text: 'text-primary', bg: 'bg-primary/10' },
@@ -167,7 +168,7 @@ function AgencyAction({
 /* ============================================================
    Matrix 2x2: Capacidad (X) vs EBITDA (Y)
 ============================================================ */
-function PriorityMatrix({ priorities, onSelect, selectedId }: { priorities: CapitalPriority[]; onSelect?: (id: string) => void; selectedId?: string | null }) {
+function PriorityMatrix({ priorities, onSelect, selectedId, simulatedIds }: { priorities: CapitalPriority[]; onSelect?: (id: string) => void; selectedId?: string | null; simulatedIds: Set<string> }) {
   const maxEbitda = Math.max(1, ...priorities.map(p => p.ebitda));
   const maxCap = Math.max(1, ...priorities.map(p => p.additionalDebt));
 
@@ -213,6 +214,7 @@ function PriorityMatrix({ priorities, onSelect, selectedId }: { priorities: Capi
           const tone = TONE_CLASSES[p.action.tone];
           const size = 8 + (p.score / 100) * 14; // 8-22px
           const isSelected = selectedId === p.agency.id;
+          const simulated = simulatedIds.has(p.agency.id);
           return (
             <div
               key={p.agency.id}
@@ -221,13 +223,16 @@ function PriorityMatrix({ priorities, onSelect, selectedId }: { priorities: Capi
             >
               <AgencyAction agencyId={p.agency.id} onSelect={onSelect} className="block w-full h-full">
                 <span
-                  className={`block w-full h-full rounded-full ${tone.dot} ring-2 ${isSelected ? 'ring-foreground' : 'ring-background'} shadow-lg hover:ring-4 transition-all cursor-pointer`}
+                  className={`block w-full h-full rounded-full ${tone.dot} ring-2 ${isSelected ? 'ring-foreground' : simulated ? 'ring-accent' : 'ring-background'} shadow-lg hover:ring-4 transition-all cursor-pointer ${simulated ? 'animate-pulse' : ''}`}
                   title={`${p.agency.name} — Score ${p.score.toFixed(0)}`}
                 />
               </AgencyAction>
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block z-10 pointer-events-none">
                 <div className="bg-popover border border-border rounded-md px-2 py-1 text-[10px] whitespace-nowrap shadow-xl">
-                  <div className="font-semibold text-foreground">{p.agency.name}</div>
+                  <div className="font-semibold text-foreground inline-flex items-center gap-1.5">
+                    {p.agency.name}
+                    {simulated && <span className="text-accent font-mono">[SIM]</span>}
+                  </div>
                   <div className="text-muted-foreground font-mono">EBITDA {formatCurrency(p.ebitda)} · Cap +{formatCurrency(p.additionalDebt)}</div>
                 </div>
               </div>
@@ -243,7 +248,7 @@ function PriorityMatrix({ priorities, onSelect, selectedId }: { priorities: Capi
 /* ============================================================
    Ranked list of priorities
 ============================================================ */
-function PriorityList({ priorities, limit, onSelect, selectedId }: { priorities: CapitalPriority[]; limit?: number; onSelect?: (id: string) => void; selectedId?: string | null }) {
+function PriorityList({ priorities, limit, onSelect, selectedId, simulatedIds }: { priorities: CapitalPriority[]; limit?: number; onSelect?: (id: string) => void; selectedId?: string | null; simulatedIds: Set<string> }) {
   const rows = limit ? priorities.slice(0, limit) : priorities;
   return (
     <div className="space-y-1.5">
@@ -251,6 +256,7 @@ function PriorityList({ priorities, limit, onSelect, selectedId }: { priorities:
         const tone = TONE_CLASSES[p.action.tone];
         const Icon = QUADRANT_ICON[p.quadrant];
         const isSelected = selectedId === p.agency.id;
+        const simulated = simulatedIds.has(p.agency.id);
         return (
           <AgencyAction
             key={p.agency.id}
@@ -259,6 +265,8 @@ function PriorityList({ priorities, limit, onSelect, selectedId }: { priorities:
             className={`w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition-all group ${
               isSelected
                 ? 'bg-primary/10 border border-primary/40'
+                : simulated
+                ? 'bg-accent/5 border border-accent/30 hover:bg-accent/10'
                 : 'bg-secondary/30 hover:bg-secondary/60 border border-transparent hover:border-border'
             }`}
           >
@@ -272,6 +280,11 @@ function PriorityList({ priorities, limit, onSelect, selectedId }: { priorities:
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-foreground truncate">{p.agency.name}</span>
                 <ActionBadge tone={p.action.tone}>{p.action.label}</ActionBadge>
+                {simulated && (
+                  <span className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-accent/15 text-accent border border-accent/30">
+                    <FlaskConical className="w-2.5 h-2.5" /> Simulado
+                  </span>
+                )}
               </div>
               <div className="text-[10px] text-muted-foreground font-mono">
                 EBITDA {formatCurrency(p.ebitda)} · Cap. adicional +{formatCurrency(p.additionalDebt)} · {p.agency.vertical}
@@ -313,6 +326,8 @@ export default function CapitalPriorityWidget({
   onSelectAgency,
   selectedAgencyId = null,
 }: Props) {
+  const { simulatedIds } = useSimulation();
+  const simulatedSet = useMemo(() => new Set(simulatedIds), [simulatedIds]);
   const priorities = useMemo(
     () => computeCapitalPriorities(agencies, { targetDSCR, amortYears, annualRate }),
     [agencies, targetDSCR, amortYears, annualRate],
@@ -333,7 +348,7 @@ export default function CapitalPriorityWidget({
           </div>
           <Link to="/war-room" className="text-xs text-primary hover:underline">Ver matriz →</Link>
         </div>
-        <PriorityList priorities={priorities} limit={3} onSelect={onSelectAgency} selectedId={selectedAgencyId} />
+        <PriorityList priorities={priorities} limit={3} onSelect={onSelectAgency} selectedId={selectedAgencyId} simulatedIds={simulatedSet} />
       </div>
     );
   }
@@ -372,11 +387,11 @@ export default function CapitalPriorityWidget({
         </div>
       </div>
 
-      <PriorityMatrix priorities={priorities} onSelect={onSelectAgency} selectedId={selectedAgencyId} />
+      <PriorityMatrix priorities={priorities} onSelect={onSelectAgency} selectedId={selectedAgencyId} simulatedIds={simulatedSet} />
 
       <div>
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ranking accionable</h4>
-        <PriorityList priorities={priorities} onSelect={onSelectAgency} selectedId={selectedAgencyId} />
+        <PriorityList priorities={priorities} onSelect={onSelectAgency} selectedId={selectedAgencyId} simulatedIds={simulatedSet} />
       </div>
     </div>
   );

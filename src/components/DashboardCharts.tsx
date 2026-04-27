@@ -3,36 +3,62 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { mockAgencies } from '@/lib/mock-data';
 import { VERTICALS, VERTICAL_COLORS, formatCurrency, getConsolidatedEbitda } from '@/lib/quantum-engine';
 import InfoTooltip from '@/components/InfoTooltip';
+import { Period, getPeriodSeries, getSnapshot, formatPeriod } from '@/lib/historical-data';
 
-export function PowerMapChart() {
-  const data = useMemo(() => {
-    // 5-year projection
+interface PowerMapProps { period?: Period }
+
+export function PowerMapChart({ period }: PowerMapProps = {}) {
+  const { data, title, subtitle, info } = useMemo(() => {
+    if (period) {
+      // Histórico: últimos 8 periodos terminando en el actual
+      const series = getPeriodSeries(period, 8);
+      return {
+        data: series.map(s => ({
+          year: formatPeriod(s.period),
+          ebitda: Math.round(s.consolidatedEbitda),
+        })),
+        title: 'EBITDA Consolidado · Histórico',
+        subtitle: `Últimos 8 ${period.granularity === 'month' ? 'meses' : period.granularity === 'quarter' ? 'trimestres' : 'años'}`,
+        info: 'historic' as const,
+      };
+    }
+    // Fallback: proyección a 5 años (modo original)
     const years = [2025, 2026, 2027, 2028, 2029];
     const growthRates = [1, 1.15, 1.35, 1.6, 2.0];
     const baseEbitda = getConsolidatedEbitda(mockAgencies);
-    return years.map((year, i) => ({
-      year: year.toString(),
-      ebitda: Math.round(baseEbitda * growthRates[i]),
-    }));
-  }, []);
+    return {
+      data: years.map((year, i) => ({
+        year: year.toString(),
+        ebitda: Math.round(baseEbitda * growthRates[i]),
+      })),
+      title: 'Mapa de Poder a 5 Años',
+      subtitle: 'Proyección de EBITDA bajo control institucional',
+      info: 'projection' as const,
+    };
+  }, [period]);
 
   return (
     <div className="glass-card p-5">
       <div className="flex items-center gap-1.5 mb-1">
-        <h3 className="text-sm font-semibold text-foreground">Mapa de Poder a 5 Años</h3>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         <InfoTooltip>
-          <div className="font-semibold text-foreground">Proyección de EBITDA Consolidado</div>
-          <div className="text-muted-foreground">EBITDA bajo control institucional proyectado bajo curva de adquisición y ascenso de niveles.</div>
-          <div className="font-mono text-[10px] text-foreground">Base × factor de crecimiento por año</div>
-          <ul className="list-disc pl-4 text-[10px] text-muted-foreground">
-            <li>2025: base actual (1.00x)</li>
-            <li>2026: 1.15x · 2027: 1.35x</li>
-            <li>2028: 1.60x · 2029: 2.00x</li>
-          </ul>
-          <div className="text-[10px] text-muted-foreground">Asume ejecución del plan de M&A y ascensos N4→N3→N2→N1.</div>
+          {info === 'historic' ? (
+            <>
+              <div className="font-semibold text-foreground">EBITDA Consolidado Histórico</div>
+              <div className="text-muted-foreground">Serie agregada de los últimos 8 periodos según la granularidad seleccionada.</div>
+              <div className="font-mono text-[10px] text-foreground">Σ (EBITDA × equity / 100) por periodo</div>
+              <div className="text-[10px] text-muted-foreground">Cambia la granularidad (mes/trimestre/año) en el selector superior.</div>
+            </>
+          ) : (
+            <>
+              <div className="font-semibold text-foreground">Proyección de EBITDA Consolidado</div>
+              <div className="text-muted-foreground">EBITDA bajo control institucional proyectado bajo curva de adquisición y ascenso de niveles.</div>
+              <div className="font-mono text-[10px] text-foreground">Base × factor de crecimiento por año</div>
+            </>
+          )}
         </InfoTooltip>
       </div>
-      <p className="text-xs text-muted-foreground mb-4">Proyección de EBITDA bajo control institucional</p>
+      <p className="text-xs text-muted-foreground mb-4">{subtitle}</p>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(222, 30%, 16%)" />
@@ -50,14 +76,24 @@ export function PowerMapChart() {
   );
 }
 
-export function VerticalDistributionChart() {
+interface VerticalProps { period?: Period }
+
+export function VerticalDistributionChart({ period }: VerticalProps = {}) {
   const data = useMemo(() => {
+    if (period) {
+      const snap = getSnapshot(period);
+      return VERTICALS.map(v => ({
+        name: v,
+        value: snap.byVertical[v] || 0,
+        color: VERTICAL_COLORS[v],
+      }));
+    }
     return VERTICALS.map(v => ({
       name: v,
       value: mockAgencies.filter(a => a.vertical === v).reduce((s, a) => s + a.ebitda * (a.equity / 100), 0),
       color: VERTICAL_COLORS[v],
     }));
-  }, []);
+  }, [period]);
 
   return (
     <div className="glass-card p-5">

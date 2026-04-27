@@ -5,6 +5,7 @@ import KPICard from '@/components/KPICard';
 import { PowerMapChart, VerticalDistributionChart } from '@/components/DashboardCharts';
 import { NivelBadge, AscensionBadge, DSCRBadge } from '@/components/StatusBadges';
 import CapitalPriorityWidget from '@/components/CapitalPriorityWidget';
+import InfoTooltip from '@/components/InfoTooltip';
 import { mockAgencies } from '@/lib/mock-data';
 import { formatCurrency, formatPercent, getConsolidatedEbitda, getAscensionOpportunity, calcIPE, calcIPP, calcIPC, calcDSCR, getDSCRStatus, NIVELES } from '@/lib/quantum-engine';
 import { Link } from 'react-router-dom';
@@ -19,12 +20,15 @@ export default function Dashboard() {
     const totalOCF = mockAgencies.reduce((s, a) => s + a.operatingCashflow, 0);
     const totalDS = mockAgencies.reduce((s, a) => s + a.debtService, 0);
     const groupDSCR = totalDS > 0 ? totalOCF / totalDS : Infinity;
+    const ebitdaMargin = totalRevenue > 0 ? (totalEbitda / totalRevenue) * 100 : 0;
+    const consolidatedEbitdaMargin = totalRevenue > 0 ? (consolidatedEbitda / totalRevenue) * 100 : 0;
+    const dsOverOcf = totalOCF > 0 ? (totalDS / totalOCF) * 100 : 0;
     const dscrBuckets = mockAgencies.reduce((acc, a) => {
       const st = getDSCRStatus(calcDSCR(a));
       acc[st] = (acc[st] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    return { totalRevenue, totalAGI, totalEbitda, consolidatedEbitda, byNivel, totalOCF, totalDS, groupDSCR, dscrBuckets };
+    return { totalRevenue, totalAGI, totalEbitda, consolidatedEbitda, byNivel, totalOCF, totalDS, groupDSCR, dscrBuckets, ebitdaMargin, consolidatedEbitdaMargin, dsOverOcf };
   }, []);
 
   const topAgencies = useMemo(() => {
@@ -49,31 +53,74 @@ export default function Dashboard() {
             value={mockAgencies.length.toString()}
             subtitle={stats.byNivel.map(b => `N${b.nivel}:${b.count}`).join(' · ')}
             icon={Building2}
+            info={
+              <>
+                <div className="font-semibold text-foreground">Spokes activos en el modelo Hub-and-Spoke</div>
+                <div className="text-muted-foreground">Distribución por nivel de integración (N1 a N4):</div>
+                <ul className="list-disc pl-4 text-foreground/90">
+                  <li><b>N1</b> Subsidiaria Majority (control mayoritario)</li>
+                  <li><b>N2</b> Participación Minoritaria estratégica</li>
+                  <li><b>N3</b> Partner Estratégico</li>
+                  <li><b>N4</b> Operador Certificado</li>
+                </ul>
+              </>
+            }
           />
           <KPICard
             title="Revenue Total"
             value={formatCurrency(stats.totalRevenue)}
             trend={{ value: '+12.5%', positive: true }}
             icon={DollarSign}
+            info={
+              <>
+                <div className="font-semibold text-foreground">Revenue agregado del grupo</div>
+                <div className="text-muted-foreground">Suma de los ingresos anuales de todas las agencias spoke (100% del top-line de cada una, sin ponderar por equity).</div>
+                <div className="font-mono text-[10px]">Σ revenue<sub>i</sub></div>
+              </>
+            }
           />
           <KPICard
             title="AGI (Margen Bruto)"
             value={formatCurrency(stats.totalAGI)}
             subtitle={formatPercent(stats.totalAGI / stats.totalRevenue * 100)}
             icon={TrendingUp}
+            info={
+              <>
+                <div className="font-semibold text-foreground">Adjusted Gross Income</div>
+                <div className="text-muted-foreground">Margen bruto consolidado: revenue menos costos directos (media buys, producción, pass-through). Mide el negocio "real" del grupo.</div>
+                <div className="font-mono text-[10px]">AGI / Revenue · {formatPercent(stats.totalAGI / stats.totalRevenue * 100)}</div>
+              </>
+            }
           />
           <KPICard
             title="EBITDA Total"
             value={formatCurrency(stats.totalEbitda)}
+            subtitle={`${formatPercent(stats.ebitdaMargin)} del Revenue`}
             icon={PieChart}
             variant="emerald"
+            info={
+              <>
+                <div className="font-semibold text-primary">EBITDA agregado (sin ponderar por equity)</div>
+                <div className="text-muted-foreground">Suma del EBITDA de las agencias al 100%. Muestra la rentabilidad operativa total del ecosistema.</div>
+                <div className="font-mono text-[10px] text-foreground">Margen EBITDA = EBITDA / Revenue = {formatPercent(stats.ebitdaMargin)}</div>
+                <div className="text-[10px] text-muted-foreground">Benchmark sano en agencias: 15–25%.</div>
+              </>
+            }
           />
           <KPICard
             title="EBITDA Consolidado"
             value={formatCurrency(stats.consolidatedEbitda)}
-            subtitle="Ponderado por equity"
+            subtitle={`Ponderado por equity · ${formatPercent(stats.consolidatedEbitdaMargin)} del Revenue`}
             icon={Crown}
             variant="gold"
+            info={
+              <>
+                <div className="font-semibold text-accent">EBITDA atribuible al grupo</div>
+                <div className="text-muted-foreground">Suma del EBITDA de cada agencia ponderado por el % de equity que el grupo controla. Es el EBITDA "real" para valoración.</div>
+                <div className="font-mono text-[10px] text-foreground">Σ (EBITDA<sub>i</sub> × equity<sub>i</sub> / 100)</div>
+                <div className="text-[10px] text-muted-foreground">Margen consolidado: {formatPercent(stats.consolidatedEbitdaMargin)} del Revenue total.</div>
+              </>
+            }
           />
         </div>
 
@@ -87,16 +134,50 @@ export default function Dashboard() {
               subtitle="Flujo operativo anual consolidado"
               icon={Wallet}
               variant="emerald"
+              info={
+                <>
+                  <div className="font-semibold text-primary">Operating Cashflow (OCF)</div>
+                  <div className="text-muted-foreground">Caja generada por la operación antes de inversiones y financiamiento. Es lo que realmente sirve para pagar deuda.</div>
+                  <div className="font-mono text-[10px] text-foreground">OCF = EBITDA − Δ working capital − impuestos pagados</div>
+                </>
+              }
             />
             <KPICard
               title="Debt Service"
               value={formatCurrency(stats.totalDS)}
-              subtitle="Obligaciones de deuda anuales"
+              subtitle={`${formatPercent(stats.dsOverOcf)} del Op. Cashflow`}
               icon={Banknote}
+              info={
+                <>
+                  <div className="font-semibold text-foreground">Debt Service consolidado</div>
+                  <div className="text-muted-foreground">Suma anual de pagos de deuda (capital + intereses) de todas las agencias.</div>
+                  <div className="font-mono text-[10px] text-foreground">Debt Svc / OCF = {formatPercent(stats.dsOverOcf)}</div>
+                  <ul className="list-disc pl-4 text-[10px] text-muted-foreground">
+                    <li>&lt; 50% → holgado, hay headroom</li>
+                    <li>50–66% → sano (DSCR ~1.5x)</li>
+                    <li>66–80% → ajustado (DSCR ~1.25x)</li>
+                    <li>&gt; 80% → riesgo (DSCR &lt; 1.25x)</li>
+                  </ul>
+                </>
+              }
             />
             <div className={`glass-card p-5 border-accent/30 animate-float-up`}>
               <div className="flex items-start justify-between mb-3">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">DSCR del Grupo</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">DSCR del Grupo</span>
+                  <InfoTooltip>
+                    <div className="font-semibold text-accent">Debt Service Coverage Ratio</div>
+                    <div className="text-muted-foreground">Mide cuántas veces el cashflow operativo cubre el servicio de deuda. Es el ratio bancario universal de salud crediticia.</div>
+                    <div className="font-mono text-[10px] text-foreground">DSCR = Operating Cashflow / Debt Service</div>
+                    <ul className="list-disc pl-4 text-[10px] text-muted-foreground">
+                      <li><b>≥ 2.00x</b> Excelente — capacidad amplia</li>
+                      <li><b>1.50–2.00x</b> Bueno — objetivo estándar</li>
+                      <li><b>1.25–1.50x</b> Aceptable — ajustado</li>
+                      <li><b>&lt; 1.25x</b> Riesgo — no soporta más deuda</li>
+                    </ul>
+                    <div className="text-[10px] text-muted-foreground">Distribución actual del set debajo del valor.</div>
+                  </InfoTooltip>
+                </div>
                 <div className="p-2 rounded-lg bg-accent/10">
                   <ShieldCheck className="w-4 h-4 text-accent" />
                 </div>

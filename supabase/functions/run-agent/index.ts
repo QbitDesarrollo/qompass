@@ -144,6 +144,52 @@ async function runRiskRadar(agentId: string, runId: string) {
   return { alertsCreated: alerts.length, summary: `${alerts.length} alertas + reporte de riesgo.` };
 }
 
+/* ---------- DSCR Watchdog (alertas determinísticas) ---------- */
+
+async function runDscrWatchdog(agentId: string, runId: string) {
+  const sb = admin();
+  const alerts: Array<Record<string, unknown>> = [];
+  for (const a of AGENCIES) {
+    if (!a.debtService || a.debtService <= 0) {
+      if (a.operatingCashflow > 400_000 && a.nivel <= 2) {
+        alerts.push({
+          agent_id: agentId, run_id: runId, severity: "info",
+          title: `${a.name}: capacidad ociosa de leverage`,
+          body: `OCF ${fmtCurrency(a.operatingCashflow)} sin deuda. Evaluar leverage.`,
+          entity_type: "agency", entity_id: a.id, metric: "leverage_capacity",
+        });
+      }
+      continue;
+    }
+    const d = calcDSCR(a);
+    const s = dscrStatus(d);
+    if (s === "riesgo") {
+      alerts.push({
+        agent_id: agentId, run_id: runId, severity: "critical",
+        title: `${a.name}: DSCR en riesgo (${d.toFixed(2)}x)`,
+        body: `OCF ${fmtCurrency(a.operatingCashflow)} vs deuda ${fmtCurrency(a.debtService)}.`,
+        entity_type: "agency", entity_id: a.id, metric: "dscr",
+      });
+    } else if (s === "aceptable") {
+      alerts.push({
+        agent_id: agentId, run_id: runId, severity: "warning",
+        title: `${a.name}: DSCR aceptable (${d.toFixed(2)}x)`,
+        body: `Cobertura limitada. Sin margen para nueva deuda.`,
+        entity_type: "agency", entity_id: a.id, metric: "dscr",
+      });
+    } else if (d >= 2.5) {
+      alerts.push({
+        agent_id: agentId, run_id: runId, severity: "info",
+        title: `${a.name}: capacidad ociosa (DSCR ${d.toFixed(2)}x)`,
+        body: `Cobertura holgada. Evaluar deuda adicional para acelerar M&A.`,
+        entity_type: "agency", entity_id: a.id, metric: "leverage_capacity",
+      });
+    }
+  }
+  if (alerts.length) await sb.from("agent_alerts").insert(alerts);
+  return { alertsCreated: alerts.length, summary: `${alerts.length} señales DSCR (cron).` };
+}
+
 /* ---------- LLM-only agents ---------- */
 
 async function runLLMAgent(agentId: string, runId: string, opts: {

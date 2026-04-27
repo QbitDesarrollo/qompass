@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Sparkles, User2 } from 'lucide-react';
+import { Loader2, Sparkles, User2 } from 'lucide-react';
 import { ChatMessage } from '@/lib/chat/chat-store';
 
 interface Props {
@@ -54,7 +54,16 @@ export default function ChatMessages({ messages, isStreaming }: Props) {
             {m.role === 'assistant'
               ? (
                 <div className="prose prose-sm prose-invert max-w-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_table]:text-xs [&_code]:text-[11px] [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs [&_strong]:text-foreground">
-                  <ReactMarkdown>{m.content || (isStreaming ? '…' : '')}</ReactMarkdown>
+                  {m.content
+                    ? <ReactMarkdown>{m.content}</ReactMarkdown>
+                    : isStreaming
+                      ? (
+                        <div className="flex items-center gap-2 text-muted-foreground not-prose min-h-6">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span className="text-xs">Pensando…</span>
+                        </div>
+                      )
+                      : null}
                 </div>
               )
               : <div className="whitespace-pre-wrap break-words">{m.content}</div>

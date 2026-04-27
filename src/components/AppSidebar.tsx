@@ -5,10 +5,10 @@ import { useAppSidebar } from './SidebarContext';
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/agencies', label: 'Agencias', icon: Building2 },
+  { path: '/projections', label: 'Proyecciones', icon: TrendingUp },
   { path: '/war-room', label: 'War Room', icon: Swords },
   { path: '/data-room', label: 'Data Room', icon: FileStack },
   { path: '/deals', label: 'Deals', icon: Briefcase },
-  { path: '/projections', label: 'Proyecciones', icon: TrendingUp },
   { path: '/playbooks', label: 'Playbooks', icon: BookOpen },
 ];
 

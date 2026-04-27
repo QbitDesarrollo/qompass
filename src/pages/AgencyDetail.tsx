@@ -331,13 +331,18 @@ export default function AgencyDetail() {
           {[
             { key: 'revenue', label: 'Revenue',  value: formatCurrency(agency.revenue), data: evolution.revenue, fmt: formatCurrency, tone: 'muted'   as const, valueCls: 'text-foreground', borderCls: '' },
             { key: 'agi',     label: 'AGI',      value: formatCurrency(agency.agi),     data: evolution.agi,     fmt: formatCurrency, tone: 'muted'   as const, valueCls: 'text-foreground', borderCls: '' },
-            { key: 'ebitda',  label: 'EBITDA',   value: formatCurrency(agency.ebitda),  data: evolution.ebitda,  fmt: formatCurrency, tone: 'primary' as const, valueCls: 'text-primary',    borderCls: 'border-primary/30' },
-            { key: 'margin',  label: 'Margen',   value: formatPercent(agency.margin),   data: evolution.margin,  fmt: (v: number) => formatPercent(v), tone: 'primary' as const, valueCls: 'text-foreground', borderCls: '' },
+            { key: 'ebitda',  label: 'EBITDA',   value: formatCurrency(agency.ebitda),  data: evolution.ebitda,  fmt: formatCurrency, tone: 'primary' as const, valueCls: 'text-primary',    borderCls: 'border-primary/30',
+              hint: `${formatPercent(agency.margin)} Rev · ${agency.agi > 0 ? formatPercent(agency.ebitda / agency.agi * 100) : '—'} AGI` },
+            { key: 'margin',  label: 'Margen',   value: formatPercent(agency.margin),   data: evolution.margin,  fmt: (v: number) => formatPercent(v), tone: 'primary' as const, valueCls: 'text-foreground', borderCls: '',
+              hint: `EBITDA / Revenue · ${agency.agi > 0 ? formatPercent(agency.ebitda / agency.agi * 100) + ' del AGI' : ''}` },
             { key: 'equity',  label: 'Equity QG', value: agency.equity > 0 ? `${agency.equity}%` : 'N/A', data: evolution.equity, fmt: (v: number) => `${v.toFixed(0)}%`, tone: 'accent' as const, valueCls: 'text-accent', borderCls: 'border-accent/30' },
           ].map(kpi => (
             <div key={kpi.key} className={`glass-card p-4 ${kpi.borderCls}`}>
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{kpi.label}</span>
               <p className={`text-lg font-bold font-mono mt-1 ${kpi.valueCls}`}>{kpi.value}</p>
+              {('hint' in kpi) && (kpi as any).hint && (
+                <p className="text-[9px] text-muted-foreground font-mono mt-0.5">{(kpi as any).hint}</p>
+              )}
               <div className="mt-2">
                 <KPIEvolutionChart data={kpi.data} tone={kpi.tone} formatValue={kpi.fmt} height={48} />
               </div>

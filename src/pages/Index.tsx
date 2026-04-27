@@ -149,7 +149,7 @@ export default function Dashboard() {
           <KPICard
             title="EBITDA Total"
             value={formatCurrency(snap.totalEbitda)}
-            subtitle={`${formatPercent(snap.ebitdaMargin)} del Revenue`}
+            subtitle={`${formatPercent(snap.ebitdaMargin)} del Revenue · ${snap.totalAGI > 0 ? formatPercent(snap.totalEbitda / snap.totalAGI * 100) : '—'} del AGI`}
             delta={deltas.ebitda}
             icon={PieChart}
             variant="emerald"
@@ -158,6 +158,7 @@ export default function Dashboard() {
                 <div className="font-semibold text-primary">EBITDA agregado (sin ponderar por equity)</div>
                 <div className="text-muted-foreground">Suma del EBITDA de las agencias al 100% en {formatPeriod(period)}.</div>
                 <div className="font-mono text-[10px] text-foreground">Margen EBITDA = EBITDA / Revenue = {formatPercent(snap.ebitdaMargin)}</div>
+                <div className="font-mono text-[10px] text-foreground">EBITDA / AGI = {snap.totalAGI > 0 ? formatPercent(snap.totalEbitda / snap.totalAGI * 100) : '—'}</div>
                 <div className="text-[10px] text-muted-foreground">Benchmark sano en agencias: 15–25%.</div>
               </>
             }
@@ -165,7 +166,7 @@ export default function Dashboard() {
           <KPICard
             title="EBITDA Consolidado"
             value={formatCurrency(snap.consolidatedEbitda)}
-            subtitle={`Ponderado por equity · ${formatPercent(snap.consolidatedEbitdaMargin)} del Revenue`}
+            subtitle={`Ponderado por equity · ${formatPercent(snap.consolidatedEbitdaMargin)} del Revenue · ${snap.totalAGI > 0 ? formatPercent(snap.consolidatedEbitda / snap.totalAGI * 100) : '—'} del AGI`}
             delta={deltas.consolidated}
             icon={Crown}
             variant="gold"
@@ -175,6 +176,7 @@ export default function Dashboard() {
                 <div className="text-muted-foreground">Suma del EBITDA de cada agencia ponderado por el % de equity que el grupo controla. Es el EBITDA "real" para valoración.</div>
                 <div className="font-mono text-[10px] text-foreground">Σ (EBITDA<sub>i</sub> × equity<sub>i</sub> / 100)</div>
                 <div className="text-[10px] text-muted-foreground">Margen consolidado: {formatPercent(snap.consolidatedEbitdaMargin)} del Revenue total.</div>
+                <div className="text-[10px] text-muted-foreground">EBITDA Consolidado / AGI: {snap.totalAGI > 0 ? formatPercent(snap.consolidatedEbitda / snap.totalAGI * 100) : '—'}</div>
               </>
             }
           />

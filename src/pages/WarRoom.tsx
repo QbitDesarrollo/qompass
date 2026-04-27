@@ -252,6 +252,12 @@ export default function WarRoom() {
           targetDSCR={targetDSCR}
           amortYears={amortYears}
           annualRate={annualRate / 100}
+          selectedAgencyId={selectedAgencyId}
+          onSelectAgency={(id) => {
+            const a = mockAgencies.find(x => x.id === id);
+            if (a && a.vertical !== selectedVertical) setSelectedVertical(a.vertical);
+            setSelectedAgencyId(id);
+          }}
         />
 
         {/* Results */}

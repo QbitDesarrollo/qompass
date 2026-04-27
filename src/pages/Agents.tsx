@@ -4,7 +4,7 @@ import {
   Shield, Play, Loader2, AlertTriangle, AlertCircle, Info, CheckCircle2, Inbox, Clock,
   Sparkles, Target, Rocket, FileText, Binoculars, FileStack, X, Pin,
   Radar, LineChart, GitMerge, ClipboardCheck, Calculator, Bot, Mail,
-  CalendarClock, Trash2,
+  CalendarClock, Trash2, PiggyBank, Gauge, FileSignature, UserMinus, Dices, Briefcase, CalendarCheck,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { runSentinel } from '@/lib/agents/sentinel';
@@ -19,6 +19,13 @@ import { runDDCoordinator } from '@/lib/agents/dd-coordinator';
 import { runValuationAgent } from '@/lib/agents/valuation-agent';
 import { runAgencyCopilot } from '@/lib/agents/agency-copilot';
 import { runStakeholderComms } from '@/lib/agents/stakeholder-comms';
+import { runDscrWatchdog } from '@/lib/agents/dscr-watchdog';
+import { runIndexTracker } from '@/lib/agents/index-tracker';
+import { runICMemoWriter } from '@/lib/agents/ic-memo-writer';
+import { runFounderRiskMitigator } from '@/lib/agents/founder-risk-mitigator';
+import { runScenarioSimulator } from '@/lib/agents/scenario-simulator';
+import { runLPInvestorUpdater } from '@/lib/agents/lp-investor-updater';
+import { runMeetingPrep } from '@/lib/agents/meeting-prep';
 import { mockAgencies } from '@/lib/mock-data';
 import { toast } from '@/hooks/use-toast';
 import AppLayout from '@/components/AppLayout';
@@ -88,6 +95,13 @@ const ICON_BY_SLUG: Record<string, React.ComponentType<{ className?: string }>> 
   'valuation-agent': Calculator,
   'agency-copilot': Bot,
   'stakeholder-comms': Mail,
+  'dscr-watchdog': PiggyBank,
+  'index-tracker': Gauge,
+  'ic-memo-writer': FileSignature,
+  'founder-risk-mitigator': UserMinus,
+  'scenario-simulator': Dices,
+  'lp-investor-updater': Briefcase,
+  'meeting-prep': CalendarCheck,
 };
 
 type RunnerResult = { alertsCreated: number; durationMs: number; outputId?: string };
@@ -103,11 +117,18 @@ const RUNNERS: Record<string, () => Promise<RunnerResult>> = {
   'dd-coordinator': runDDCoordinator,
   'valuation-agent': runValuationAgent,
   'stakeholder-comms': runStakeholderComms,
+  'dscr-watchdog': runDscrWatchdog,
+  'index-tracker': runIndexTracker,
+  'ic-memo-writer': runICMemoWriter,
+  'founder-risk-mitigator': runFounderRiskMitigator,
+  'scenario-simulator': runScenarioSimulator,
+  'lp-investor-updater': runLPInvestorUpdater,
 };
 
 // Agentes que requieren parámetro (manejados aparte)
 const PARAMETRIC_RUNNERS: Record<string, (param: string) => Promise<RunnerResult>> = {
   'agency-copilot': runAgencyCopilot,
+  'meeting-prep': runMeetingPrep,
 };
 
 const CATEGORY_META: Record<string, { label: string; order: number }> = {

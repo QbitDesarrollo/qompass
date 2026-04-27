@@ -9,6 +9,14 @@ export interface ChatMessage {
   createdAt: number;
 }
 
+function normalizeHistory(list: ChatMessage[]) {
+  return list.filter((m) => {
+    if (!m || (m.role !== 'user' && m.role !== 'assistant')) return false;
+    if (typeof m.content !== 'string') return false;
+    return m.role === 'user' || m.content.trim().length > 0;
+  });
+}
+
 interface ChatContextValue {
   messages: ChatMessage[];
   isStreaming: boolean;
@@ -32,7 +40,7 @@ function loadInitial(): ChatMessage[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string');
+    return normalizeHistory(parsed);
   } catch {
     return [];
   }
@@ -48,7 +56,7 @@ export function QompassChatProvider({ children }: { children: ReactNode }) {
 
   // Persist
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-100))); } catch {/* noop */}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeHistory(messages).slice(-100))); } catch {/* noop */}
   }, [messages]);
 
   const open = useCallback(() => setOpen(true), []);
@@ -78,7 +86,7 @@ export function QompassChatProvider({ children }: { children: ReactNode }) {
       createdAt: Date.now(),
     };
     const assistantId = crypto.randomUUID();
-    const baseHistory = [...messages, userMsg];
+    const baseHistory = [...normalizeHistory(messages), userMsg];
     setMessages([...baseHistory, { id: assistantId, role: 'assistant', content: '', createdAt: Date.now() }]);
     setStreaming(true);
 

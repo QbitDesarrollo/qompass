@@ -1,10 +1,11 @@
 import { useMemo, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Target, Zap, AlertTriangle, Wrench, Search, ArrowRight, Info, FlaskConical } from 'lucide-react';
+import { Target, Zap, AlertTriangle, Wrench, Search, ArrowRight, Info, FlaskConical, BookOpen } from 'lucide-react';
 import { mockAgencies } from '@/lib/mock-data';
 import { computeCapitalPriorities, formatCurrency, QUADRANT_META, PriorityQuadrant, CapitalPriority } from '@/lib/quantum-engine';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSimulation } from '@/lib/simulation-store';
+import { getPlaybookEligibility } from '@/lib/playbooks-data';
 
 const TONE_CLASSES: Record<'primary' | 'accent' | 'warning' | 'danger', { badge: string; dot: string; ring: string; text: string; bg: string }> = {
   primary: { badge: 'bg-primary/15 text-primary border-primary/30', dot: 'bg-primary', ring: 'ring-primary/40', text: 'text-primary', bg: 'bg-primary/10' },

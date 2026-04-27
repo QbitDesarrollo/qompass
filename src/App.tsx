@@ -8,6 +8,7 @@ import Agencies from "./pages/Agencies";
 import AgencyDetail from "./pages/AgencyDetail";
 import WarRoom from "./pages/WarRoom";
 import DataRoom from "./pages/DataRoom";
+import Playbooks from "./pages/Playbooks";
 import NotFound from "./pages/NotFound";
 import { SimulationProvider } from "./lib/simulation-store";
 
@@ -26,6 +27,8 @@ const App = () => (
             <Route path="/agencies/:id" element={<AgencyDetail />} />
             <Route path="/war-room" element={<WarRoom />} />
             <Route path="/data-room" element={<DataRoom />} />
+            <Route path="/playbooks" element={<Playbooks />} />
+            <Route path="/playbooks/:agencyId" element={<Playbooks />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

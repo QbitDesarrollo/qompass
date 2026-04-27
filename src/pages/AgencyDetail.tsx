@@ -1,9 +1,9 @@
 import { useParams, Link } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import AppLayout from '@/components/AppLayout';
-import { NivelBadge, AscensionBadge } from '@/components/StatusBadges';
+import { NivelBadge, AscensionBadge, DSCRBadge } from '@/components/StatusBadges';
 import { mockAgencies } from '@/lib/mock-data';
-import { calcIPE, calcIPP, calcIPC, getAscensionOpportunity, isLevel1Eligible, formatCurrency, formatPercent, NIVEL_LABELS, Agency } from '@/lib/quantum-engine';
+import { calcIPE, calcIPP, calcIPC, calcDSCR, getDSCRStatus, DSCR_STATUS_LABEL, getAscensionOpportunity, isLevel1Eligible, formatCurrency, formatPercent, NIVEL_LABELS, Agency } from '@/lib/quantum-engine';
 import { ArrowLeft, AlertTriangle, CheckCircle2, TrendingUp } from 'lucide-react';
 import { Info, FileText, Sparkles, RotateCcw } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
@@ -259,6 +259,39 @@ export default function AgencyDetail() {
             </div>
           ))}
         </div>
+
+        {/* Cash & Debt */}
+        {(() => {
+          const dscr = calcDSCR(agency);
+          const status = getDSCRStatus(dscr);
+          const cls = status === 'excelente' ? 'border-primary/30' : status === 'bueno' ? 'border-accent/30' : status === 'aceptable' ? 'border-yellow-500/30' : 'border-destructive/40';
+          const valCls = status === 'excelente' ? 'text-primary' : status === 'bueno' ? 'text-accent' : status === 'aceptable' ? 'text-yellow-400' : 'text-destructive';
+          return (
+            <div>
+              <h2 className="text-sm font-semibold text-foreground mb-3">Cash & Debt</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="glass-card p-4 border-primary/20">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Operating Cashflow</span>
+                  <p className="text-lg font-bold font-mono mt-1 text-primary">{formatCurrency(agency.operatingCashflow)}</p>
+                  <p className="text-[10px] text-muted-foreground">Flujo operativo anual</p>
+                </div>
+                <div className="glass-card p-4">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Debt Service</span>
+                  <p className="text-lg font-bold font-mono mt-1 text-foreground">{formatCurrency(agency.debtService)}</p>
+                  <p className="text-[10px] text-muted-foreground">Obligaciones de deuda anuales</p>
+                </div>
+                <div className={`glass-card p-4 ${cls}`}>
+                  <div className="flex items-start justify-between">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">DSCR Ratio</span>
+                    <DSCRBadge value={dscr} showValue={false} />
+                  </div>
+                  <p className={`text-lg font-bold font-mono mt-1 ${valCls}`}>{isFinite(dscr) ? `${dscr.toFixed(2)}x` : '∞'}</p>
+                  <p className="text-[10px] text-muted-foreground">{DSCR_STATUS_LABEL[status]} · OCF / Debt Service</p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Composite Indices */}
         <div>

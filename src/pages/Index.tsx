@@ -1,11 +1,11 @@
 import { useMemo } from 'react';
-import { Building2, DollarSign, TrendingUp, PieChart, Crown } from 'lucide-react';
+import { Building2, DollarSign, TrendingUp, PieChart, Crown, Wallet, Banknote, ShieldCheck } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import KPICard from '@/components/KPICard';
 import { PowerMapChart, VerticalDistributionChart } from '@/components/DashboardCharts';
-import { NivelBadge, AscensionBadge } from '@/components/StatusBadges';
+import { NivelBadge, AscensionBadge, DSCRBadge } from '@/components/StatusBadges';
 import { mockAgencies } from '@/lib/mock-data';
-import { formatCurrency, formatPercent, getConsolidatedEbitda, getAscensionOpportunity, calcIPE, calcIPP, calcIPC, NIVELES } from '@/lib/quantum-engine';
+import { formatCurrency, formatPercent, getConsolidatedEbitda, getAscensionOpportunity, calcIPE, calcIPP, calcIPC, calcDSCR, getDSCRStatus, NIVELES } from '@/lib/quantum-engine';
 import { Link } from 'react-router-dom';
 
 export default function Dashboard() {
@@ -15,7 +15,15 @@ export default function Dashboard() {
     const totalEbitda = mockAgencies.reduce((s, a) => s + a.ebitda, 0);
     const consolidatedEbitda = getConsolidatedEbitda(mockAgencies);
     const byNivel = NIVELES.map(n => ({ nivel: n, count: mockAgencies.filter(a => a.nivel === n).length }));
-    return { totalRevenue, totalAGI, totalEbitda, consolidatedEbitda, byNivel };
+    const totalOCF = mockAgencies.reduce((s, a) => s + a.operatingCashflow, 0);
+    const totalDS = mockAgencies.reduce((s, a) => s + a.debtService, 0);
+    const groupDSCR = totalDS > 0 ? totalOCF / totalDS : Infinity;
+    const dscrBuckets = mockAgencies.reduce((acc, a) => {
+      const st = getDSCRStatus(calcDSCR(a));
+      acc[st] = (acc[st] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    return { totalRevenue, totalAGI, totalEbitda, consolidatedEbitda, byNivel, totalOCF, totalDS, groupDSCR, dscrBuckets };
   }, []);
 
   const topAgencies = useMemo(() => {
@@ -66,6 +74,44 @@ export default function Dashboard() {
             icon={Crown}
             variant="gold"
           />
+        </div>
+
+        {/* Cash & Debt KPIs */}
+        <div>
+          <h2 className="text-sm font-semibold text-foreground mb-3">Cash & Debt — Salud Financiera</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <KPICard
+              title="Operating Cashflow"
+              value={formatCurrency(stats.totalOCF)}
+              subtitle="Flujo operativo anual consolidado"
+              icon={Wallet}
+              variant="emerald"
+            />
+            <KPICard
+              title="Debt Service"
+              value={formatCurrency(stats.totalDS)}
+              subtitle="Obligaciones de deuda anuales"
+              icon={Banknote}
+            />
+            <div className={`glass-card p-5 border-accent/30 animate-float-up`}>
+              <div className="flex items-start justify-between mb-3">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">DSCR del Grupo</span>
+                <div className="p-2 rounded-lg bg-accent/10">
+                  <ShieldCheck className="w-4 h-4 text-accent" />
+                </div>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl font-bold font-mono tracking-tight text-accent">{stats.groupDSCR.toFixed(2)}x</p>
+                <DSCRBadge value={stats.groupDSCR} showValue={false} />
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-2 text-[10px] text-muted-foreground">
+                <span>Operating CF / Debt Service</span>
+                <span className="ml-auto font-mono">
+                  ✓{stats.dscrBuckets.excelente || 0} · ✓{stats.dscrBuckets.bueno || 0} · ⚠{stats.dscrBuckets.aceptable || 0} · ✗{stats.dscrBuckets.riesgo || 0}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Charts */}

@@ -23,7 +23,7 @@ export default function AppSidebar() {
         </div>
         {!collapsed && (
           <div className="overflow-hidden">
-            <h1 className="text-sm font-bold text-foreground tracking-tight">QuantumOS</h1>
+            <h1 className="text-sm font-bold text-foreground tracking-tight">Qompass</h1>
             <p className="text-[10px] text-muted-foreground">Quantum Group HQ</p>
           </div>
         )}

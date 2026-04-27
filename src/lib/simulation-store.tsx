@@ -8,6 +8,7 @@ import { Agency } from './quantum-engine';
  */
 
 const STORAGE_KEY = 'qg_simulations_v1';
+const ENABLED_KEY = 'qg_simulations_enabled_v1';
 
 type OverrideMap = Record<string, Partial<Agency>>;
 
@@ -28,6 +29,10 @@ interface SimulationCtx {
   simulatedCount: number;
   /** IDs de agencias con simulación activa */
   simulatedIds: string[];
+  /** Marca/desmarca explícitamente el modo simulación de una agencia (sin tocar valores) */
+  setSimulationEnabled: (agencyId: string, enabled: boolean) => void;
+  /** ¿El modo simulación está activado para la agencia? */
+  isSimulationEnabled: (agencyId: string) => boolean;
 }
 
 const SimulationContext = createContext<SimulationCtx | null>(null);
@@ -53,22 +58,51 @@ function persist(map: OverrideMap) {
   }
 }
 
+function loadEnabled(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(ENABLED_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistEnabled(ids: string[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(ENABLED_KEY, JSON.stringify(ids));
+  } catch {
+    // ignore
+  }
+}
+
 function isNonEmpty(o: Partial<Agency> | undefined): boolean {
   return !!o && Object.keys(o).length > 0;
 }
 
 export function SimulationProvider({ children }: { children: ReactNode }) {
   const [overridesByAgency, setMap] = useState<OverrideMap>(() => loadFromStorage());
+  const [enabledSet, setEnabledSet] = useState<Set<string>>(() => new Set(loadEnabled()));
 
   useEffect(() => {
     persist(overridesByAgency);
   }, [overridesByAgency]);
+
+  useEffect(() => {
+    persistEnabled(Array.from(enabledSet));
+  }, [enabledSet]);
 
   // Sincronizar entre pestañas
   useEffect(() => {
     const handler = (e: StorageEvent) => {
       if (e.key === STORAGE_KEY) {
         setMap(loadFromStorage());
+      }
+      if (e.key === ENABLED_KEY) {
+        setEnabledSet(new Set(loadEnabled()));
       }
     };
     window.addEventListener('storage', handler);
@@ -94,13 +128,46 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
       delete next[agencyId];
       return next;
     });
+    setEnabledSet(prev => {
+      if (!prev.has(agencyId)) return prev;
+      const next = new Set(prev);
+      next.delete(agencyId);
+      return next;
+    });
   }, []);
 
-  const clearAll = useCallback(() => setMap({}), []);
+  const clearAll = useCallback(() => {
+    setMap({});
+    setEnabledSet(new Set());
+  }, []);
+
+  const setSimulationEnabled = useCallback((agencyId: string, enabled: boolean) => {
+    setEnabledSet(prev => {
+      const has = prev.has(agencyId);
+      if (enabled === has) return prev;
+      const next = new Set(prev);
+      if (enabled) next.add(agencyId); else next.delete(agencyId);
+      return next;
+    });
+    if (!enabled) {
+      // Al desactivar también descartamos los overrides
+      setMap(prev => {
+        if (!prev[agencyId]) return prev;
+        const next = { ...prev };
+        delete next[agencyId];
+        return next;
+      });
+    }
+  }, []);
+
+  const isSimulationEnabled = useCallback(
+    (agencyId: string) => enabledSet.has(agencyId),
+    [enabledSet],
+  );
 
   const isSimulated = useCallback(
-    (agencyId: string) => isNonEmpty(overridesByAgency[agencyId]),
-    [overridesByAgency],
+    (agencyId: string) => enabledSet.has(agencyId) || isNonEmpty(overridesByAgency[agencyId]),
+    [overridesByAgency, enabledSet],
   );
 
   const applyOverrides = useCallback(
@@ -112,8 +179,14 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
   );
 
   const simulatedIds = useMemo(
-    () => Object.keys(overridesByAgency).filter(id => isNonEmpty(overridesByAgency[id])),
-    [overridesByAgency],
+    () => {
+      const set = new Set<string>(enabledSet);
+      Object.keys(overridesByAgency).forEach(id => {
+        if (isNonEmpty(overridesByAgency[id])) set.add(id);
+      });
+      return Array.from(set);
+    },
+    [overridesByAgency, enabledSet],
   );
 
   const value = useMemo<SimulationCtx>(() => ({
@@ -125,7 +198,9 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
     applyOverrides,
     simulatedCount: simulatedIds.length,
     simulatedIds,
-  }), [overridesByAgency, setAgencyOverrides, clearAgency, clearAll, isSimulated, applyOverrides, simulatedIds]);
+    setSimulationEnabled,
+    isSimulationEnabled,
+  }), [overridesByAgency, setAgencyOverrides, clearAgency, clearAll, isSimulated, applyOverrides, simulatedIds, setSimulationEnabled, isSimulationEnabled]);
 
   return <SimulationContext.Provider value={value}>{children}</SimulationContext.Provider>;
 }

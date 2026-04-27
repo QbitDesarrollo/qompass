@@ -486,6 +486,96 @@ export default function WarRoom() {
                   Ajusta los sliders para reflejar revolventes (corto plazo, tasas mensuales variables), bullets (1–3 años), term loans (5–7 años) o senior notes (10+ años).
                 </div>
 
+                {/* Tabla de amortización mensual */}
+                {!exhausted && r.additionalDebt > 0 && (() => {
+                  const principal = r.additionalDebt;
+                  const n = Math.max(1, amortYears * 12);
+                  const i = (annualRate / 100) / 12;
+                  const payment = i > 0
+                    ? principal * (i * Math.pow(1 + i, n)) / (Math.pow(1 + i, n) - 1)
+                    : principal / n;
+                  // Construir cronograma mensual completo y agregar por año
+                  let balance = principal;
+                  let totalInterest = 0;
+                  let totalPrincipal = 0;
+                  const yearly: { year: number; interest: number; principal: number; payment: number; endBalance: number }[] = [];
+                  for (let y = 1; y <= amortYears; y++) {
+                    let yInt = 0, yPrin = 0, yPay = 0;
+                    for (let m = 1; m <= 12; m++) {
+                      const interest = balance * i;
+                      const principalPay = payment - interest;
+                      balance = Math.max(0, balance - principalPay);
+                      yInt += interest;
+                      yPrin += principalPay;
+                      yPay += payment;
+                    }
+                    totalInterest += yInt;
+                    totalPrincipal += yPrin;
+                    yearly.push({ year: y, interest: yInt, principal: yPrin, payment: yPay, endBalance: balance });
+                  }
+                  return (
+                    <div className="glass-card p-4">
+                      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                        <div>
+                          <p className="text-xs uppercase tracking-wider text-muted-foreground">Cronograma de Pago — Capacidad Adicional</p>
+                          <p className="text-[11px] text-muted-foreground/80">
+                            Principal <span className="font-mono text-primary">{formatCurrency(principal)}</span> ·
+                            Cuota mensual <span className="font-mono text-accent">{formatCurrency(payment)}</span> ·
+                            Cuota anual <span className="font-mono text-accent">{formatCurrency(payment * 12)}</span>
+                          </p>
+                        </div>
+                        <div className="text-right text-[11px]">
+                          <p className="text-muted-foreground">Total intereses: <span className="font-mono text-foreground">{formatCurrency(totalInterest)}</span></p>
+                          <p className="text-muted-foreground">Total pagado: <span className="font-mono text-foreground">{formatCurrency(totalPrincipal + totalInterest)}</span></p>
+                        </div>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-[11px] font-mono">
+                          <thead>
+                            <tr className="text-muted-foreground border-b border-border/40">
+                              <th className="text-left py-2 px-2 font-normal">Año</th>
+                              <th className="text-right py-2 px-2 font-normal">Cuota Mensual</th>
+                              <th className="text-right py-2 px-2 font-normal">Capital (mes)</th>
+                              <th className="text-right py-2 px-2 font-normal">Interés (mes)</th>
+                              <th className="text-right py-2 px-2 font-normal">Capital (año)</th>
+                              <th className="text-right py-2 px-2 font-normal">Interés (año)</th>
+                              <th className="text-right py-2 px-2 font-normal">Saldo Fin</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {yearly.map((y) => {
+                              const monthlyPrin = y.principal / 12;
+                              const monthlyInt = y.interest / 12;
+                              return (
+                                <tr key={y.year} className="border-b border-border/20 hover:bg-muted/20">
+                                  <td className="py-1.5 px-2 text-foreground">{y.year}</td>
+                                  <td className="py-1.5 px-2 text-right text-accent">{formatCurrency(payment)}</td>
+                                  <td className="py-1.5 px-2 text-right text-primary">{formatCurrency(monthlyPrin)}</td>
+                                  <td className="py-1.5 px-2 text-right text-muted-foreground">{formatCurrency(monthlyInt)}</td>
+                                  <td className="py-1.5 px-2 text-right text-primary">{formatCurrency(y.principal)}</td>
+                                  <td className="py-1.5 px-2 text-right text-muted-foreground">{formatCurrency(y.interest)}</td>
+                                  <td className="py-1.5 px-2 text-right text-foreground">{formatCurrency(y.endBalance)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                          <tfoot>
+                            <tr className="border-t border-border/40">
+                              <td className="py-2 px-2 text-foreground font-semibold" colSpan={4}>Totales</td>
+                              <td className="py-2 px-2 text-right text-primary font-semibold">{formatCurrency(totalPrincipal)}</td>
+                              <td className="py-2 px-2 text-right text-accent font-semibold">{formatCurrency(totalInterest)}</td>
+                              <td className="py-2 px-2 text-right text-foreground font-semibold">{formatCurrency(totalPrincipal + totalInterest)}</td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground/80 mt-3">
+                        Cuota fija mensual calculada con <span className="font-mono">PMT = P · i / (1 − (1 + i)<sup>−n</sup>)</span>, donde <span className="font-mono">i</span> = tasa mensual y <span className="font-mono">n</span> = {n} meses. La proporción capital/interés varía mes a mes (sistema francés): los primeros años pagan más interés y los últimos más capital.
+                      </p>
+                    </div>
+                  );
+                })()}
+
                 {/* Acquisition coverage widget */}
                 {simulation && (() => {
                   const cost = simulation.acquisitionCost;

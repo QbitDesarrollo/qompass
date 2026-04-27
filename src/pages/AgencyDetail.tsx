@@ -174,11 +174,11 @@ export default function AgencyDetail() {
       <TooltipProvider delayDuration={150}>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-4 flex-wrap">
           <Link to="/agencies" className="mt-1 p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors">
             <ArrowLeft className="w-4 h-4 text-muted-foreground" />
           </Link>
-          <div className="flex-1">
+          <div className="flex-1 min-w-[200px]">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-bold text-foreground">{agency.name}</h1>
               <NivelBadge nivel={agency.nivel} />
@@ -193,7 +193,7 @@ export default function AgencyDetail() {
               {agency.vertical} · {agency.country} · {NIVEL_LABELS[agency.nivel]}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 ml-auto flex-shrink-0">
             {simulating && hasChanges && (
               <Button variant="ghost" size="sm" onClick={resetSim} className="text-xs">
                 <RotateCcw className="w-3 h-3" /> Reset
@@ -203,9 +203,9 @@ export default function AgencyDetail() {
               variant={simulating ? 'default' : 'outline'}
               size="sm"
               onClick={() => { if (simulating) resetSim(); setSimulating(s => !s); }}
-              className="text-xs"
+              className={`text-xs ${simulating ? '' : 'border-accent/50 text-accent hover:bg-accent/10 hover:text-accent'}`}
             >
-              {simulating ? <><Sparkles className="w-3 h-3" /> Simulación activa</> : <><FileText className="w-3 h-3" /> Valores de Documentos</>}
+              {simulating ? <><Sparkles className="w-3 h-3" /> Simulación activa</> : <><Sparkles className="w-3 h-3" /> Simular escenario</>}
             </Button>
           </div>
         </div>

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { mockAgencies } from '@/lib/mock-data';
 import { VERTICALS, Vertical, NivelIntegracion, formatCurrency, getConsolidatedEbitda, Agency } from '@/lib/quantum-engine';
-import { Swords, ArrowRight, TrendingUp, Shield, Zap } from 'lucide-react';
+import { Swords, ArrowRight, TrendingUp, Shield, Zap, DollarSign, Sparkles } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { Slider } from '@/components/ui/slider';
 
@@ -10,6 +10,8 @@ export default function WarRoom() {
   const [selectedVertical, setSelectedVertical] = useState<Vertical>('Creative & Strategy');
   const [simulateTransition, setSimulateTransition] = useState<'3→2' | '2→1' | null>(null);
   const [exitMultiple, setExitMultiple] = useState(6);
+  const [standaloneMultiple, setStandaloneMultiple] = useState(4);
+  const [customEquity, setCustomEquity] = useState<number | null>(null);
 
   const currentConsolidated = useMemo(() => getConsolidatedEbitda(mockAgencies), []);
 
@@ -23,7 +25,10 @@ export default function WarRoom() {
 
     if (targetAgencies.length === 0) return null;
 
-    const newEquity = simulateTransition === '3→2' ? 20 : 51;
+    const defaultEquity = simulateTransition === '3→2' ? 20 : 51;
+    const newEquity = customEquity ?? defaultEquity;
+    const avgCurrentEquity = targetAgencies.reduce((s, a) => s + a.equity, 0) / targetAgencies.length;
+    const equityAcquired = Math.max(0, newEquity - avgCurrentEquity);
     const oldContribution = targetAgencies.reduce((s, a) => s + a.ebitda * (a.equity / 100), 0);
     const newContribution = targetAgencies.reduce((s, a) => s + a.ebitda * (newEquity / 100), 0);
     const incrementalEbitda = newContribution - oldContribution;
@@ -32,12 +37,20 @@ export default function WarRoom() {
     const currentValuation = currentConsolidated * exitMultiple;
     const projectedValuation = projectedConsolidated * exitMultiple;
 
+    // Acquisition economics
+    const acquisitionCost = incrementalEbitda * standaloneMultiple; // pay at standalone multiple
+    const valueAtGroupMultiple = incrementalEbitda * exitMultiple;  // worth at group multiple
+    const arbitrage = valueAtGroupMultiple - acquisitionCost;       // multiple arbitrage
+
     const avgIRFBefore = targetAgencies.reduce((s, a) => s + a.irf, 0) / targetAgencies.length;
     const irfReduction = simulateTransition === '2→1' ? avgIRFBefore * 0.4 : avgIRFBefore * 0.2;
 
     return {
       targetAgencies,
       newEquity,
+      defaultEquity,
+      avgCurrentEquity,
+      equityAcquired,
       oldContribution,
       newContribution,
       incrementalEbitda,
@@ -45,11 +58,14 @@ export default function WarRoom() {
       currentValuation,
       projectedValuation,
       valueGain: projectedValuation - currentValuation,
+      acquisitionCost,
+      valueAtGroupMultiple,
+      arbitrage,
       irfReduction,
       avgIRFBefore,
       avgIRFAfter: avgIRFBefore - irfReduction,
     };
-  }, [selectedVertical, simulateTransition, exitMultiple, currentConsolidated]);
+  }, [selectedVertical, simulateTransition, exitMultiple, standaloneMultiple, customEquity, currentConsolidated]);
 
   const comparisonData = useMemo(() => {
     if (!simulation) return [];

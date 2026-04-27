@@ -77,11 +77,12 @@ export function buildQompassSnapshot() {
     id: d.id,
     name: d.name,
     stage: d.stage,
-    template: d.template,
-    targetCompany: d.target?.name,
-    askingPriceUSD: d.inputs?.askingPrice,
-    sellerEbitdaUSD: d.inputs?.sellerEbitda,
-    ddStatusKeys: Object.keys(d.ddStatus || {}).length,
+    targetCompany: d.target,
+    askingPriceUSD: d.inputs?.ask,
+    sellerEbitdaUSD: d.inputs?.ebitda,
+    industryMultiple: d.inputs?.industryMultiple,
+    pctEquityAcquired: d.inputs?.pctEquityAcquired,
+    ddItems: Object.keys(d.ddStatus || {}).length,
   }));
 
   return {

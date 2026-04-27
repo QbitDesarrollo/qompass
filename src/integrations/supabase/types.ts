@@ -14,7 +14,140 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      agent_alerts: {
+        Row: {
+          agent_id: string
+          body: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          metric: string | null
+          run_id: string | null
+          severity: string
+          status: string
+          title: string
+        }
+        Insert: {
+          agent_id: string
+          body: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          metric?: string | null
+          run_id?: string | null
+          severity?: string
+          status?: string
+          title: string
+        }
+        Update: {
+          agent_id?: string
+          body?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          metric?: string | null
+          run_id?: string | null
+          severity?: string
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_alerts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_alerts_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "agent_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_runs: {
+        Row: {
+          agent_id: string
+          alerts_created: number
+          duration_ms: number | null
+          id: string
+          started_at: string
+          status: string
+          summary: string | null
+        }
+        Insert: {
+          agent_id: string
+          alerts_created?: number
+          duration_ms?: number | null
+          id?: string
+          started_at?: string
+          status?: string
+          summary?: string | null
+        }
+        Update: {
+          agent_id?: string
+          alerts_created?: number
+          duration_ms?: number | null
+          id?: string
+          started_at?: string
+          status?: string
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_runs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agents: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          enabled: boolean
+          icon: string
+          id: string
+          last_run_at: string | null
+          name: string
+          schedule: string | null
+          slug: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          enabled?: boolean
+          icon?: string
+          id?: string
+          last_run_at?: string | null
+          name: string
+          schedule?: string | null
+          slug: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          enabled?: boolean
+          icon?: string
+          id?: string
+          last_run_at?: string | null
+          name?: string
+          schedule?: string | null
+          slug?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

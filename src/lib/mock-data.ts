@@ -8,6 +8,7 @@ export const mockAgencies: Agency[] = [
     cme: 4.5, cec: 4.2, cei: 4.6, det: 4.3,
     ipeHistory: [4.1, 4.3], ippHistory: [4.0], ipcHistory: [4.2, 4.1],
     country: 'México',
+    operatingCashflow: 760_000, debtService: 320_000,
   },
   {
     id: '2', name: 'Pulse Media Group', vertical: 'Media & Performance', nivel: 2, equity: 30,
@@ -16,6 +17,7 @@ export const mockAgencies: Agency[] = [
     cme: 3.8, cec: 4.0, cei: 3.5, det: 3.8,
     ipeHistory: [3.5], ippHistory: [3.9, 4.0], ipcHistory: [3.5],
     country: 'Colombia',
+    operatingCashflow: 920_000, debtService: 540_000,
   },
   {
     id: '3', name: 'StreetForce BTL', vertical: 'Trade & BTL', nivel: 3, equity: 0,
@@ -24,6 +26,7 @@ export const mockAgencies: Agency[] = [
     cme: 3.2, cec: 3.0, cei: 2.8, det: 2.5,
     ipeHistory: [3.2], ippHistory: [3.0], ipcHistory: [2.5],
     country: 'Perú',
+    operatingCashflow: 320_000, debtService: 280_000,
   },
   {
     id: '4', name: 'NexaTech Solutions', vertical: 'Data / Tech / AI', nivel: 2, equity: 25,
@@ -32,6 +35,7 @@ export const mockAgencies: Agency[] = [
     cme: 4.2, cec: 4.5, cei: 4.0, det: 4.2,
     ipeHistory: [4.0], ippHistory: [4.1, 4.2], ipcHistory: [3.9, 4.1],
     country: 'México',
+    operatingCashflow: 1_550_000, debtService: 620_000,
   },
   {
     id: '5', name: 'VelocitySales Co', vertical: 'Contact & Sales', nivel: 4, equity: 0,
@@ -40,6 +44,7 @@ export const mockAgencies: Agency[] = [
     cme: 2.8, cec: 2.5, cei: 2.0, det: 2.0,
     ipeHistory: [3.5, 3.9], ippHistory: [2.5], ipcHistory: [2.0],
     country: 'Chile',
+    operatingCashflow: 240_000, debtService: 220_000,
   },
   {
     id: '6', name: 'Lumina Creatives', vertical: 'Creative & Strategy', nivel: 3, equity: 0,
@@ -48,6 +53,7 @@ export const mockAgencies: Agency[] = [
     cme: 3.5, cec: 3.2, cei: 3.0, det: 2.8,
     ipeHistory: [3.4], ippHistory: [3.2, 3.5], ipcHistory: [2.8],
     country: 'Argentina',
+    operatingCashflow: 200_000, debtService: 180_000,
   },
   {
     id: '7', name: 'Broadcast Digital', vertical: 'Media & Performance', nivel: 1, equity: 55,
@@ -56,6 +62,7 @@ export const mockAgencies: Agency[] = [
     cme: 4.8, cec: 4.5, cei: 4.8, det: 4.5,
     ipeHistory: [4.5, 4.6], ippHistory: [4.3], ipcHistory: [4.5, 4.6],
     country: 'México',
+    operatingCashflow: 900_000, debtService: 380_000,
   },
   {
     id: '8', name: 'ImpactoBTL', vertical: 'Trade & BTL', nivel: 4, equity: 0,
@@ -64,6 +71,7 @@ export const mockAgencies: Agency[] = [
     cme: 2.0, cec: 1.8, cei: 1.5, det: 1.5,
     ipeHistory: [2.8, 3.0], ippHistory: [2.0], ipcHistory: [1.5],
     country: 'Ecuador',
+    operatingCashflow: 80_000, debtService: 95_000,
   },
   {
     id: '9', name: 'CloudStack Dev', vertical: 'Data / Tech / AI', nivel: 3, equity: 0,
@@ -72,6 +80,7 @@ export const mockAgencies: Agency[] = [
     cme: 3.8, cec: 3.5, cei: 3.2, det: 3.5,
     ipeHistory: [3.6, 3.9], ippHistory: [3.4, 3.8], ipcHistory: [3.0],
     country: 'Colombia',
+    operatingCashflow: 580_000, debtService: 320_000,
   },
   {
     id: '10', name: 'Revenue Partners', vertical: 'Contact & Sales', nivel: 2, equity: 20,
@@ -80,6 +89,7 @@ export const mockAgencies: Agency[] = [
     cme: 3.8, cec: 3.8, cei: 3.5, det: 3.5,
     ipeHistory: [3.7], ippHistory: [3.6, 3.9], ipcHistory: [3.3],
     country: 'México',
+    operatingCashflow: 510_000, debtService: 300_000,
   },
   {
     id: '11', name: 'Kreatik Lab', vertical: 'Creative & Strategy', nivel: 2, equity: 35,
@@ -88,6 +98,7 @@ export const mockAgencies: Agency[] = [
     cme: 4.0, cec: 3.8, cei: 3.5, det: 3.8,
     ipeHistory: [3.8], ippHistory: [3.7, 3.9], ipcHistory: [3.4],
     country: 'Colombia',
+    operatingCashflow: 460_000, debtService: 230_000,
   },
   {
     id: '12', name: 'DataDriven Media', vertical: 'Media & Performance', nivel: 3, equity: 0,
@@ -96,5 +107,6 @@ export const mockAgencies: Agency[] = [
     cme: 3.2, cec: 3.0, cei: 2.8, det: 2.8,
     ipeHistory: [3.0, 3.3], ippHistory: [2.9], ipcHistory: [2.5],
     country: 'Perú',
+    operatingCashflow: 350_000, debtService: 270_000,
   },
 ];

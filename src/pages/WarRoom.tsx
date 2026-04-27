@@ -162,12 +162,12 @@ export default function WarRoom() {
               <Slider
                 value={[standaloneMultiple]}
                 onValueChange={([v]) => setStandaloneMultiple(v)}
-                min={2}
+                min={1}
                 max={7}
                 step={0.5}
               />
               <div className="flex justify-between text-[9px] text-muted-foreground">
-                <span>2x</span><span>7x</span>
+                <span>1x</span><span>7x</span>
               </div>
             </div>
           </div>

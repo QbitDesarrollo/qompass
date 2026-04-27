@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Target, Zap, AlertTriangle, Wrench, Search, ArrowRight } from 'lucide-react';
 import { mockAgencies } from '@/lib/mock-data';
@@ -26,10 +26,36 @@ function ActionBadge({ tone, children }: { tone: 'primary' | 'accent' | 'warning
   );
 }
 
+/** Wrapper que renderiza <button> si hay onSelect, o <Link> si no. Evita warnings de ref. */
+function AgencyAction({
+  agencyId,
+  onSelect,
+  className,
+  children,
+}: {
+  agencyId: string;
+  onSelect?: (id: string) => void;
+  className?: string;
+  children: ReactNode;
+}) {
+  if (onSelect) {
+    return (
+      <button type="button" onClick={() => onSelect(agencyId)} className={className}>
+        {children}
+      </button>
+    );
+  }
+  return (
+    <Link to={`/agencies/${agencyId}`} className={className}>
+      {children}
+    </Link>
+  );
+}
+
 /* ============================================================
    Matrix 2x2: Capacidad (X) vs EBITDA (Y)
 ============================================================ */
-function PriorityMatrix({ priorities }: { priorities: CapitalPriority[] }) {
+function PriorityMatrix({ priorities, onSelect, selectedId }: { priorities: CapitalPriority[]; onSelect?: (id: string) => void; selectedId?: string | null }) {
   const maxEbitda = Math.max(1, ...priorities.map(p => p.ebitda));
   const maxCap = Math.max(1, ...priorities.map(p => p.additionalDebt));
 
@@ -70,18 +96,19 @@ function PriorityMatrix({ priorities }: { priorities: CapitalPriority[] }) {
           const y = (Math.max(0, p.ebitda) / maxEbitda) * 100;
           const tone = TONE_CLASSES[p.action.tone];
           const size = 8 + (p.score / 100) * 14; // 8-22px
+          const isSelected = selectedId === p.agency.id;
           return (
             <div
               key={p.agency.id}
               className="absolute group"
               style={{ left: `calc(${x}% - ${size / 2}px)`, bottom: `calc(${y}% - ${size / 2}px)`, width: size, height: size }}
             >
-              <Link to={`/agencies/${p.agency.id}`}>
-                <div
-                  className={`w-full h-full rounded-full ${tone.dot} ring-2 ring-background shadow-lg hover:ring-4 hover:${tone.ring} transition-all cursor-pointer`}
+              <AgencyAction agencyId={p.agency.id} onSelect={onSelect} className="block w-full h-full">
+                <span
+                  className={`block w-full h-full rounded-full ${tone.dot} ring-2 ${isSelected ? 'ring-foreground' : 'ring-background'} shadow-lg hover:ring-4 transition-all cursor-pointer`}
                   title={`${p.agency.name} — Score ${p.score.toFixed(0)}`}
                 />
-              </Link>
+              </AgencyAction>
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block z-10 pointer-events-none">
                 <div className="bg-popover border border-border rounded-md px-2 py-1 text-[10px] whitespace-nowrap shadow-xl">
                   <div className="font-semibold text-foreground">{p.agency.name}</div>
@@ -99,18 +126,24 @@ function PriorityMatrix({ priorities }: { priorities: CapitalPriority[] }) {
 /* ============================================================
    Ranked list of priorities
 ============================================================ */
-function PriorityList({ priorities, limit }: { priorities: CapitalPriority[]; limit?: number }) {
+function PriorityList({ priorities, limit, onSelect, selectedId }: { priorities: CapitalPriority[]; limit?: number; onSelect?: (id: string) => void; selectedId?: string | null }) {
   const rows = limit ? priorities.slice(0, limit) : priorities;
   return (
     <div className="space-y-1.5">
       {rows.map((p, i) => {
         const tone = TONE_CLASSES[p.action.tone];
         const Icon = QUADRANT_ICON[p.quadrant];
+        const isSelected = selectedId === p.agency.id;
         return (
-          <Link
+          <AgencyAction
             key={p.agency.id}
-            to={`/agencies/${p.agency.id}`}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg bg-secondary/30 hover:bg-secondary/60 border border-transparent hover:border-border transition-all group"
+            agencyId={p.agency.id}
+            onSelect={onSelect}
+            className={`w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition-all group ${
+              isSelected
+                ? 'bg-primary/10 border border-primary/40'
+                : 'bg-secondary/30 hover:bg-secondary/60 border border-transparent hover:border-border'
+            }`}
           >
             <div className="flex items-center justify-center w-6 h-6 rounded-md bg-muted/40 text-[10px] font-mono text-muted-foreground">
               {i + 1}
@@ -132,7 +165,7 @@ function PriorityList({ priorities, limit }: { priorities: CapitalPriority[]; li
               <div className="text-[9px] text-muted-foreground uppercase tracking-wider">score</div>
             </div>
             <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-          </Link>
+          </AgencyAction>
         );
       })}
     </div>
@@ -148,6 +181,10 @@ interface Props {
   targetDSCR?: number;
   amortYears?: number;
   annualRate?: number; // 0..1
+  /** Si se provee, los items disparan este callback (selección local) en lugar de navegar a /agencies/:id */
+  onSelectAgency?: (id: string) => void;
+  /** ID actualmente seleccionado, para resaltarlo */
+  selectedAgencyId?: string | null;
 }
 
 export default function CapitalPriorityWidget({
@@ -156,6 +193,8 @@ export default function CapitalPriorityWidget({
   targetDSCR = 1.5,
   amortYears = 6,
   annualRate = 0.10,
+  onSelectAgency,
+  selectedAgencyId = null,
 }: Props) {
   const priorities = useMemo(
     () => computeCapitalPriorities(agencies, { targetDSCR, amortYears, annualRate }),
@@ -177,7 +216,7 @@ export default function CapitalPriorityWidget({
           </div>
           <Link to="/war-room" className="text-xs text-primary hover:underline">Ver matriz →</Link>
         </div>
-        <PriorityList priorities={priorities} limit={3} />
+        <PriorityList priorities={priorities} limit={3} onSelect={onSelectAgency} selectedId={selectedAgencyId} />
       </div>
     );
   }
@@ -199,6 +238,7 @@ export default function CapitalPriorityWidget({
             <h3 className="text-sm font-semibold text-foreground">Prioridad de Despliegue de Capital</h3>
             <p className="text-[10px] text-muted-foreground">
               Score = 60% EBITDA · 30% capacidad de deuda adicional · 10% momentum de ascenso · DSCR objetivo {targetDSCR.toFixed(2)}x
+              {onSelectAgency ? ' · Click para seleccionar agencia' : ''}
             </p>
           </div>
         </div>
@@ -215,11 +255,11 @@ export default function CapitalPriorityWidget({
         </div>
       </div>
 
-      <PriorityMatrix priorities={priorities} />
+      <PriorityMatrix priorities={priorities} onSelect={onSelectAgency} selectedId={selectedAgencyId} />
 
       <div>
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ranking accionable</h4>
-        <PriorityList priorities={priorities} />
+        <PriorityList priorities={priorities} onSelect={onSelectAgency} selectedId={selectedAgencyId} />
       </div>
     </div>
   );

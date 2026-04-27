@@ -1,4 +1,9 @@
-export type Vertical = 'Creative' | 'Media' | 'BTL' | 'Tech' | 'Sales';
+export type Vertical =
+  | 'Creative & Strategy'
+  | 'Media & Performance'
+  | 'Trade & BTL'
+  | 'Data / Tech / AI'
+  | 'Contact & Sales';
 export type NivelIntegracion = 1 | 2 | 3 | 4;
 
 export interface Agency {
@@ -79,15 +84,21 @@ export function formatPercent(n: number): string {
   return `${n.toFixed(1)}%`;
 }
 
-export const VERTICALS: Vertical[] = ['Creative', 'Media', 'BTL', 'Tech', 'Sales'];
+export const VERTICALS: Vertical[] = [
+  'Creative & Strategy',
+  'Media & Performance',
+  'Trade & BTL',
+  'Data / Tech / AI',
+  'Contact & Sales',
+];
 export const NIVELES: NivelIntegracion[] = [1, 2, 3, 4];
 
 export const VERTICAL_COLORS: Record<Vertical, string> = {
-  Creative: 'hsl(270, 67%, 55%)',
-  Media: 'hsl(217, 91%, 60%)',
-  BTL: 'hsl(350, 89%, 60%)',
-  Tech: 'hsl(160, 84%, 39%)',
-  Sales: 'hsl(45, 93%, 58%)',
+  'Creative & Strategy': 'hsl(270, 67%, 55%)',
+  'Media & Performance': 'hsl(217, 91%, 60%)',
+  'Trade & BTL': 'hsl(350, 89%, 60%)',
+  'Data / Tech / AI': 'hsl(160, 84%, 39%)',
+  'Contact & Sales': 'hsl(45, 93%, 58%)',
 };
 
 export const NIVEL_LABELS: Record<NivelIntegracion, string> = {

@@ -121,7 +121,7 @@ export default function WarRoom() {
                 return (
                   <button
                     key={t}
-                    onClick={() => setSimulateTransition(simulateTransition === t ? null : t)}
+                    onClick={() => { setSimulateTransition(simulateTransition === t ? null : t); setCustomEquity(null); }}
                     disabled={agencies.length === 0}
                     className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm transition-all ${
                       simulateTransition === t
@@ -142,7 +142,7 @@ export default function WarRoom() {
             </div>
             <div className="mt-4 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Múltiplo de Salida</span>
+                <span className="text-xs text-muted-foreground">Múltiplo del Grupo (Exit)</span>
                 <span className="text-sm font-bold font-mono text-accent">{exitMultiple}x</span>
               </div>
               <Slider
@@ -154,6 +154,20 @@ export default function WarRoom() {
               />
               <div className="flex justify-between text-[9px] text-muted-foreground">
                 <span>4x</span><span>8x</span>
+              </div>
+              <div className="flex items-center justify-between mt-3">
+                <span className="text-xs text-muted-foreground">Múltiplo Standalone (Agencia)</span>
+                <span className="text-sm font-bold font-mono text-primary">{standaloneMultiple}x</span>
+              </div>
+              <Slider
+                value={[standaloneMultiple]}
+                onValueChange={([v]) => setStandaloneMultiple(v)}
+                min={2}
+                max={7}
+                step={0.5}
+              />
+              <div className="flex justify-between text-[9px] text-muted-foreground">
+                <span>2x</span><span>7x</span>
               </div>
             </div>
           </div>

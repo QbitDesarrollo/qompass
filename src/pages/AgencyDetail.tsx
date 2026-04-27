@@ -5,9 +5,10 @@ import { NivelBadge, AscensionBadge } from '@/components/StatusBadges';
 import { mockAgencies } from '@/lib/mock-data';
 import { calcIPE, calcIPP, calcIPC, getAscensionOpportunity, isLevel1Eligible, formatCurrency, formatPercent, NIVEL_LABELS, Agency } from '@/lib/quantum-engine';
 import { ArrowLeft, AlertTriangle, CheckCircle2, TrendingUp } from 'lucide-react';
-import { Info } from 'lucide-react';
+import { Info, FileText, Sparkles, RotateCcw } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
 
 const INDEX_INFO: Record<string, string> = {
   IPE: 'Índice de Poder Estratégico. Mide la capacidad de Quantum Group para influir estratégicamente sobre la agencia. Fórmula: (DEC/100·5)·0.35 + CME·0.35 + IIO·0.15 + (6−IS)·0.15. Umbral 3.8 activa transición Fase 4→3.',

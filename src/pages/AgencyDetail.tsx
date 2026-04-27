@@ -13,7 +13,8 @@ import { Switch } from '@/components/ui/switch';
 import PeriodSelector from '@/components/PeriodSelector';
 import KPIEvolutionChart from '@/components/KPIEvolutionChart';
 import MultiKPIChart from '@/components/MultiKPIChart';
-import { Period, currentPeriod, getAgencyPeriodMetrics, getAgencyPeriodSeries, formatPeriod } from '@/lib/historical-data';
+import FinancialValidationWidget from '@/components/FinancialValidationWidget';
+import { Period, currentPeriod, getAgencyPeriodMetrics, getAgencyPeriodSeries, formatPeriod, splitDebtService } from '@/lib/historical-data';
 import { useSimulation } from '@/lib/simulation-store';
 import { toast } from 'sonner';
 
@@ -373,6 +374,7 @@ export default function AgencyDetail() {
           const status = getDSCRStatus(dscr);
           const cls = status === 'excelente' ? 'border-primary/30' : status === 'bueno' ? 'border-accent/30' : status === 'aceptable' ? 'border-yellow-500/30' : 'border-destructive/40';
           const valCls = status === 'excelente' ? 'text-primary' : status === 'bueno' ? 'text-accent' : status === 'aceptable' ? 'text-yellow-400' : 'text-destructive';
+          const ds = splitDebtService(agency.debtService, agency.ebitda);
           return (
             <div>
               <h2 className="text-sm font-semibold text-foreground mb-3">Cash & Debt</h2>
@@ -384,10 +386,26 @@ export default function AgencyDetail() {
                   <div className="mt-2"><KPIEvolutionChart data={evolution.ocf} tone="primary" formatValue={formatCurrency} height={44} /></div>
                 </div>
                 <div className="glass-card p-4">
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Debt Service</span>
+                  <div className="flex items-start justify-between">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Debt Service</span>
+                    <span className="text-[9px] font-mono text-muted-foreground">Capital + Intereses</span>
+                  </div>
                   <p className="text-lg font-bold font-mono mt-1 text-foreground">{formatCurrency(agency.debtService)}</p>
-                  <p className="text-[10px] text-muted-foreground">Obligaciones de deuda anuales</p>
-                  <div className="mt-2"><KPIEvolutionChart data={evolution.ds} tone="muted" formatValue={formatCurrency} height={44} /></div>
+                  <div className="mt-1.5 space-y-0.5">
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-destructive">● Intereses</span>
+                      <span className="font-mono text-destructive">{formatCurrency(ds.interest)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="text-muted-foreground">● Capital</span>
+                      <span className="font-mono text-muted-foreground">{formatCurrency(ds.principal)}</span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full overflow-hidden bg-secondary flex mt-1">
+                      <div className="h-full bg-destructive/70" style={{ width: `${ds.interestShare * 100}%` }} />
+                      <div className="h-full bg-foreground/30" style={{ width: `${ds.principalShare * 100}%` }} />
+                    </div>
+                  </div>
+                  <div className="mt-2"><KPIEvolutionChart data={evolution.ds} tone="muted" formatValue={formatCurrency} height={36} /></div>
                 </div>
                 <div className={`glass-card p-4 ${cls}`}>
                   <div className="flex items-start justify-between">
@@ -398,6 +416,18 @@ export default function AgencyDetail() {
                   <p className="text-[10px] text-muted-foreground">{DSCR_STATUS_LABEL[status]} · OCF / Debt Service</p>
                   <div className="mt-2"><KPIEvolutionChart data={evolution.dscr} tone="accent" formatValue={(v) => `${v.toFixed(2)}x`} height={44} /></div>
                 </div>
+              </div>
+
+              {/* Widget de validación financiera */}
+              <div className="mt-4">
+                <FinancialValidationWidget
+                  revenue={agency.revenue}
+                  ebitda={agency.ebitda}
+                  operatingCashflow={agency.operatingCashflow}
+                  debtService={agency.debtService}
+                  formatCurrency={formatCurrency}
+                  formatPercent={formatPercent}
+                />
               </div>
             </div>
           );

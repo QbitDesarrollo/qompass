@@ -115,7 +115,7 @@ export default function WarRoom() {
                 return (
                   <button
                     key={v}
-                    onClick={() => { setSelectedVertical(v); setSimulateTransition(null); }}
+                    onClick={() => { setSelectedVertical(v); setSimulateTransition(null); setSelectedAgencyId(null); }}
                     className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${
                       selectedVertical === v
                         ? 'bg-primary/15 text-primary border border-primary/30'

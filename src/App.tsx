@@ -12,9 +12,12 @@ import Playbooks from "./pages/Playbooks";
 import Deals from "./pages/Deals";
 import DealDetail from "./pages/DealDetail";
 import Projections from "./pages/Projections";
+import QompassChat from "./pages/QompassChat";
 import NotFound from "./pages/NotFound";
 import { SimulationProvider } from "./lib/simulation-store";
 import { DealsProvider } from "./lib/deals/deals-store";
+import { QompassChatProvider } from "./lib/chat/chat-store";
+import FloatingChat from "./components/chat/FloatingChat";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +26,7 @@ const App = () => (
     <TooltipProvider>
       <SimulationProvider>
         <DealsProvider>
+        <QompassChatProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
@@ -37,9 +41,12 @@ const App = () => (
             <Route path="/deals" element={<Deals />} />
             <Route path="/deals/:id" element={<DealDetail />} />
             <Route path="/projections" element={<Projections />} />
+            <Route path="/chat" element={<QompassChat />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <FloatingChat />
         </BrowserRouter>
+        </QompassChatProvider>
         </DealsProvider>
       </SimulationProvider>
     </TooltipProvider>

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Building2, Swords, FileStack, BookOpen, Briefcase, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Building2, Swords, FileStack, BookOpen, Briefcase, TrendingUp, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppSidebar } from './SidebarContext';
 
 const navItems = [
@@ -10,6 +10,7 @@ const navItems = [
   { path: '/data-room', label: 'Data Room', icon: FileStack },
   { path: '/deals', label: 'Deals', icon: Briefcase },
   { path: '/playbooks', label: 'Playbooks', icon: BookOpen },
+  { path: '/chat', label: 'Qompass AI', icon: MessageSquare },
 ];
 
 export default function AppSidebar() {

@@ -4,21 +4,88 @@ import AppLayout from '@/components/AppLayout';
 import { NivelBadge, AscensionBadge, DSCRBadge } from '@/components/StatusBadges';
 import { mockAgencies } from '@/lib/mock-data';
 import { VERTICALS, NIVELES, Vertical, NivelIntegracion, formatCurrency, formatPercent, getAscensionOpportunity, calcIPE, calcIPP, calcIPC, calcDSCR, isLevel1Eligible } from '@/lib/quantum-engine';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+
+type SortKey =
+  | 'name' | 'vertical' | 'nivel' | 'country'
+  | 'equity' | 'revenue' | 'ebitda' | 'margin'
+  | 'operatingCashflow' | 'debtService' | 'dscr'
+  | 'ipe' | 'ipp' | 'ipc' | 'status';
+type SortDir = 'asc' | 'desc';
 
 export default function AgenciesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterVertical, setFilterVertical] = useState<Vertical | 'all'>('all');
   const [filterNivel, setFilterNivel] = useState<NivelIntegracion | 0>(0);
+  const [sortKey, setSortKey] = useState<SortKey>('ebitda');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      // Numeric/desc por defecto, texto/asc por defecto
+      const textKeys: SortKey[] = ['name', 'vertical', 'country'];
+      setSortDir(textKeys.includes(key) ? 'asc' : 'desc');
+    }
+  };
 
   const filtered = useMemo(() => {
-    return mockAgencies.filter(a => {
+    const list = mockAgencies.filter(a => {
       if (searchQuery && !a.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       if (filterVertical !== 'all' && a.vertical !== filterVertical) return false;
       if (filterNivel !== 0 && a.nivel !== filterNivel) return false;
       return true;
     });
-  }, [searchQuery, filterVertical, filterNivel]);
+
+    const getValue = (a: typeof mockAgencies[number]): string | number => {
+      switch (sortKey) {
+        case 'name': return a.name.toLowerCase();
+        case 'vertical': return a.vertical.toLowerCase();
+        case 'nivel': return a.nivel;
+        case 'country': return a.country.toLowerCase();
+        case 'equity': return a.equity;
+        case 'revenue': return a.revenue;
+        case 'ebitda': return a.ebitda;
+        case 'margin': return a.margin;
+        case 'operatingCashflow': return a.operatingCashflow;
+        case 'debtService': return a.debtService;
+        case 'dscr': return calcDSCR(a);
+        case 'ipe': return calcIPE(a);
+        case 'ipp': return calcIPP(a);
+        case 'ipc': return calcIPC(a);
+        case 'status': return getAscensionOpportunity(a) ? 0 : 1; // oportunidades primero
+      }
+    };
+
+    const sorted = [...list].sort((a, b) => {
+      const va = getValue(a);
+      const vb = getValue(b);
+      let cmp = 0;
+      if (typeof va === 'number' && typeof vb === 'number') cmp = va - vb;
+      else cmp = String(va).localeCompare(String(vb));
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }, [searchQuery, filterVertical, filterNivel, sortKey, sortDir]);
+
+  const SortHeader = ({ label, k, align = 'left' }: { label: string; k: SortKey; align?: 'left' | 'right' }) => {
+    const active = sortKey === k;
+    const Icon = !active ? ArrowUpDown : sortDir === 'asc' ? ArrowUp : ArrowDown;
+    return (
+      <th className={`py-3 px-4 text-xs font-medium ${align === 'right' ? 'text-right' : 'text-left'}`}>
+        <button
+          type="button"
+          onClick={() => handleSort(k)}
+          className={`inline-flex items-center gap-1 transition-colors hover:text-foreground ${active ? 'text-primary' : 'text-muted-foreground'} ${align === 'right' ? 'flex-row-reverse' : ''}`}
+        >
+          <span>{label}</span>
+          <Icon className={`w-3 h-3 ${active ? 'opacity-100' : 'opacity-40'}`} />
+        </button>
+      </th>
+    );
+  };
 
   return (
     <AppLayout>
@@ -67,21 +134,21 @@ export default function AgenciesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-secondary/30">
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">Agencia</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">Vertical</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">Nivel</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">País</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">Equity</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">Revenue</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">EBITDA</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">Margen</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">Op. CF</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">Debt Svc</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">DSCR</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">IPE</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">IPP</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">IPC</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">Status</th>
+                  <SortHeader label="Agencia" k="name" />
+                  <SortHeader label="Vertical" k="vertical" />
+                  <SortHeader label="Nivel" k="nivel" />
+                  <SortHeader label="País" k="country" />
+                  <SortHeader label="Equity" k="equity" align="right" />
+                  <SortHeader label="Revenue" k="revenue" align="right" />
+                  <SortHeader label="EBITDA" k="ebitda" align="right" />
+                  <SortHeader label="Margen" k="margin" align="right" />
+                  <SortHeader label="Op. CF" k="operatingCashflow" align="right" />
+                  <SortHeader label="Debt Svc" k="debtService" align="right" />
+                  <SortHeader label="DSCR" k="dscr" />
+                  <SortHeader label="IPE" k="ipe" align="right" />
+                  <SortHeader label="IPP" k="ipp" align="right" />
+                  <SortHeader label="IPC" k="ipc" align="right" />
+                  <SortHeader label="Status" k="status" />
                 </tr>
               </thead>
               <tbody>

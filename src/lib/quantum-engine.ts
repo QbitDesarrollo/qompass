@@ -99,6 +99,27 @@ export const DSCR_STATUS_LABEL: Record<DSCRStatus, string> = {
   riesgo: 'En Riesgo (<1.25x)',
 };
 
+// Leverage capacity: cuánto debt service adicional puede soportar la agencia
+// manteniendo el DSCR objetivo. Asume mismo costo de deuda que el actual
+// (el debt service incremental se traduce a deuda incremental usando un
+// múltiplo deuda/servicio). Si no hay debt service base, asumimos un coverage
+// service factor estándar de ~6x (≈ deuda a 6 años amortizada con interés).
+export function calcLeverageCapacity(a: Agency, targetDSCR: number = 1.5): {
+  additionalDebtService: number;
+  additionalDebt: number;
+  currentDSCR: number;
+  maxDebtService: number;
+} {
+  const currentDSCR = calcDSCR(a);
+  const maxDebtService = a.operatingCashflow / targetDSCR;
+  const additionalDebtService = Math.max(0, maxDebtService - a.debtService);
+  // Implied debt multiple: si hay deuda actual, derivamos el ratio deuda/servicio,
+  // si no, usamos 6x como proxy estándar de financiamiento corporativo.
+  const debtServiceMultiple = 6;
+  const additionalDebt = additionalDebtService * debtServiceMultiple;
+  return { additionalDebtService, additionalDebt, currentDSCR, maxDebtService };
+}
+
 export function formatCurrency(n: number): string {
   if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
   if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;

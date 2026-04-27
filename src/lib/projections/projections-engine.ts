@@ -135,6 +135,57 @@ export interface ForecastInput {
   baseline: { revenue: number; agi: number; ebitda: number; ocf: number; debtService: number };
   startYear: number; startMonth: number;
   horizon: Horizon; assumptions: Assumptions; scenario: Scenario;
+  /** Plan absoluto de Revenue por año (opcional). Si está, sobreescribe el cálculo compuesto del Revenue. */
+  revenuePlan?: RevenuePlan;
+}
+
+/** Plan absoluto de Revenue. annual = total del año en USD. quarters = override por Q (Q1..Q4). */
+export interface RevenuePlanYear {
+  year: number;
+  annual: number;
+  /** Override por trimestre. Cada entrada existente reemplaza el reparto del Q correspondiente. */
+  quarters?: Partial<Record<1 | 2 | 3 | 4, number>>;
+}
+export type RevenuePlan = RevenuePlanYear[];
+
+const QUARTER_SEASONAL: Record<1 | 2 | 3 | 4, number[]> = {
+  // pesos relativos de los 3 meses dentro de cada Q (suman 1)
+  1: [0.31, 0.34, 0.35],
+  2: [0.33, 0.34, 0.33],
+  3: [0.32, 0.34, 0.34],
+  4: [0.30, 0.34, 0.36],
+};
+const ANNUAL_MONTH_WEIGHTS = [0.075,0.078,0.082,0.083,0.085,0.085,0.080,0.082,0.084,0.087,0.088,0.091];
+// (suma ≈ 1.0; lleve estacionalidad ligera)
+
+function quarterOf(month: number): 1 | 2 | 3 | 4 {
+  return Math.ceil(month / 3) as 1 | 2 | 3 | 4;
+}
+
+/** Devuelve el revenue planeado para (year, month) si hay plan disponible para ese año. */
+function planRevenueForMonth(plan: RevenuePlan | undefined, year: number, month: number, scenarioMult: number): number | null {
+  if (!plan) return null;
+  const py = plan.find(p => p.year === year);
+  if (!py || !(py.annual > 0)) return null;
+  const q = quarterOf(month);
+  const monthInQ = ((month - 1) % 3); // 0..2
+  const qOverride = py.quarters?.[q];
+  let monthVal: number;
+  if (qOverride !== undefined && qOverride > 0) {
+    monthVal = qOverride * QUARTER_SEASONAL[q][monthInQ];
+  } else {
+    // reparto anual con ajuste por overrides existentes en otros Q
+    const overriddenSum = ([1,2,3,4] as const).reduce((s, qq) => s + (py.quarters?.[qq] ?? 0), 0);
+    const remaining = Math.max(0, py.annual - overriddenSum);
+    // pesos de los meses no-override: usar ANNUAL_MONTH_WEIGHTS solo de Q no overrideados
+    const freeWeights = ANNUAL_MONTH_WEIGHTS.map((w, idx) => {
+      const m = idx + 1;
+      return py.quarters?.[quarterOf(m)] !== undefined ? 0 : w;
+    });
+    const freeTotal = freeWeights.reduce((a, b) => a + b, 0) || 1;
+    monthVal = remaining * (freeWeights[month - 1] / freeTotal);
+  }
+  return monthVal * scenarioMult;
 }
 
 export function forecast(input: ForecastInput): ProjectionResult {
@@ -143,10 +194,18 @@ export function forecast(input: ForecastInput): ProjectionResult {
   let cumulativeCash = 0;
   let totalRevenue = 0, totalAGI = 0, totalEbitda = 0;
 
+  // Multiplicador de escenario sobre el revenue plan (mantiene la idea Bull/Bear)
+  const scenarioRevMult = SCENARIO_TUNING[input.scenario].growth === 1
+    ? 1
+    : (input.scenario === 'bull' ? 1.06 : input.scenario === 'bear' ? 0.94 : 1);
+
   for (let i = 1; i <= input.horizon; i++) {
     const { year, month } = addMonths(input.startYear, input.startMonth, i);
     const seasonal = 1 + 0.05 * Math.sin(((month - 1) / 12) * Math.PI * 2 - Math.PI / 2);
-    const revenue = input.baseline.revenue * Math.pow(1 + a.revenueGrowth, i) * seasonal;
+    const planned = planRevenueForMonth(input.revenuePlan, year, month, scenarioRevMult);
+    const revenue = planned !== null
+      ? planned
+      : input.baseline.revenue * Math.pow(1 + a.revenueGrowth, i) * seasonal;
     const agi = revenue * a.agiMargin;
     const ebitda = revenue * a.ebitdaMargin;
     const ocf = ebitda * a.ocfConversion;

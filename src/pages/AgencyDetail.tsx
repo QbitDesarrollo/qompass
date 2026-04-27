@@ -140,6 +140,7 @@ export default function AgencyDetail() {
   const baseAgency = mockAgencies.find(a => a.id === id);
 
   const [overrides, setOverrides] = useState<Partial<Agency>>({});
+  const [simulating, setSimulating] = useState(false);
   
   if (!baseAgency) {
     return (
@@ -156,12 +157,17 @@ export default function AgencyDetail() {
   const ipe = calcIPE(agency);
   const ipp = calcIPP(agency);
   const ipc = calcIPC(agency);
+  const baseIpe = calcIPE(baseAgency);
+  const baseIpp = calcIPP(baseAgency);
+  const baseIpc = calcIPC(baseAgency);
   const ascension = getAscensionOpportunity(agency);
   const eligible = isLevel1Eligible(agency);
 
   const updateField = (field: keyof Agency, value: number) => {
     setOverrides(prev => ({ ...prev, [field]: value }));
   };
+  const resetSim = () => setOverrides({});
+  const hasChanges = Object.keys(overrides).length > 0;
 
   return (
     <AppLayout>
@@ -187,6 +193,31 @@ export default function AgencyDetail() {
               {agency.vertical} · {agency.country} · {NIVEL_LABELS[agency.nivel]}
             </p>
           </div>
+          <div className="flex items-center gap-2">
+            {simulating && hasChanges && (
+              <Button variant="ghost" size="sm" onClick={resetSim} className="text-xs">
+                <RotateCcw className="w-3 h-3" /> Reset
+              </Button>
+            )}
+            <Button
+              variant={simulating ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => { if (simulating) resetSim(); setSimulating(s => !s); }}
+              className="text-xs"
+            >
+              {simulating ? <><Sparkles className="w-3 h-3" /> Simulación activa</> : <><FileText className="w-3 h-3" /> Valores de Documentos</>}
+            </Button>
+          </div>
+        </div>
+
+        {/* Mode banner */}
+        <div className={`flex items-center gap-3 p-3 rounded-xl border text-xs ${simulating ? 'border-accent/30 bg-accent/5' : 'border-border bg-secondary/30'}`}>
+          {simulating ? <Sparkles className="w-4 h-4 text-accent flex-shrink-0" /> : <FileText className="w-4 h-4 text-primary flex-shrink-0" />}
+          <p className="text-muted-foreground">
+            {simulating
+              ? <>Modo <span className="text-accent font-semibold">Simulación</span> — los sliders permiten proyectar escenarios. Las barras difuminadas muestran el valor simulado vs. el baseline sincronizado.</>
+              : <>Valores <span className="text-primary font-semibold">sincronizados de documentos</span> de la agencia (data room, financials, due diligence). Activa Simulación para modificar.</>}
+          </p>
         </div>
 
         {/* Ascension Alert */}
@@ -225,9 +256,9 @@ export default function AgencyDetail() {
             Índices Compuestos — Motor de Decisión
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <IndexGauge label="IPE (Poder Estratégico)" code="IPE" value={ipe} threshold={3.8} description="Fase 4→3 · Partner → Participación" />
-            <IndexGauge label="IPP (Preparación Participación)" code="IPP" value={ipp} threshold={3.8} description="Fase 3→2 · Adquisición minoritaria" />
-            <IndexGauge label="IPC (Preparación Control)" code="IPC" value={ipc} threshold={4.0} description="Fase 2→1 · Control mayoritario" />
+            <IndexGauge label="IPE (Poder Estratégico)" code="IPE" value={ipe} baseline={baseIpe} threshold={3.8} description="Fase 4→3 · Partner → Participación" simulating={simulating} />
+            <IndexGauge label="IPP (Preparación Participación)" code="IPP" value={ipp} baseline={baseIpp} threshold={3.8} description="Fase 3→2 · Adquisición minoritaria" simulating={simulating} />
+            <IndexGauge label="IPC (Preparación Control)" code="IPC" value={ipc} baseline={baseIpc} threshold={4.0} description="Fase 2→1 · Control mayoritario" simulating={simulating} />
           </div>
         </div>
 
@@ -237,22 +268,22 @@ export default function AgencyDetail() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="glass-card p-5 space-y-4">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Operativo</h3>
-              <SliderInput label="IIO (Integración Operativa)" code="IIO" value={agency.iio} onChange={v => updateField('iio', v)} description="1=Independiente, 5=Unidad interna total" />
-              <SliderInput label="IIOT (Integración Op. Total)" code="IIOT" value={agency.iiot} onChange={v => updateField('iiot', v)} description="1=Sin sistemas compartidos, 5=Op. centralizada" />
-              <SliderInput label="IS (Sustituibilidad)" code="IS" value={agency.is_} onChange={v => updateField('is_', v)} description="1=Muy reemplazable, 5=Crítico/Irreemplazable" />
+              <SliderInput label="IIO (Integración Operativa)" code="IIO" value={agency.iio} baseline={baseAgency.iio} onChange={v => updateField('iio', v)} description="1=Independiente, 5=Unidad interna total" disabled={!simulating} />
+              <SliderInput label="IIOT (Integración Op. Total)" code="IIOT" value={agency.iiot} baseline={baseAgency.iiot} onChange={v => updateField('iiot', v)} description="1=Sin sistemas compartidos, 5=Op. centralizada" disabled={!simulating} />
+              <SliderInput label="IS (Sustituibilidad)" code="IS" value={agency.is_} baseline={baseAgency.is_} onChange={v => updateField('is_', v)} description="1=Muy reemplazable, 5=Crítico/Irreemplazable" disabled={!simulating} />
             </div>
             <div className="glass-card p-5 space-y-4">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Financiero & Riesgo</h3>
-              <SliderInput label="IIF (Integración Financiera)" code="IIF" value={agency.iif} onChange={v => updateField('iif', v)} description="1=Información desordenada, 5=Audit-ready" />
-              <SliderInput label="IRF (Riesgo Fundador)" code="IRF" value={agency.irf} onChange={v => updateField('irf', v)} description="1=Delegación total, 5=Dependencia absoluta" />
-              <SliderInput label="IARF (Autonomía Residual)" code="IARF" value={agency.iarf} onChange={v => updateField('iarf', v)} description="1=Control real inmediato, 5=Control informal" />
+              <SliderInput label="IIF (Integración Financiera)" code="IIF" value={agency.iif} baseline={baseAgency.iif} onChange={v => updateField('iif', v)} description="1=Información desordenada, 5=Audit-ready" disabled={!simulating} />
+              <SliderInput label="IRF (Riesgo Fundador)" code="IRF" value={agency.irf} baseline={baseAgency.irf} onChange={v => updateField('irf', v)} description="1=Delegación total, 5=Dependencia absoluta" disabled={!simulating} />
+              <SliderInput label="IARF (Autonomía Residual)" code="IARF" value={agency.iarf} baseline={baseAgency.iarf} onChange={v => updateField('iarf', v)} description="1=Control real inmediato, 5=Control informal" disabled={!simulating} />
             </div>
             <div className="glass-card p-5 space-y-4">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Estratégico</h3>
-              <SliderInput label="CME (Calidad Métrica Estratégica)" code="CME" value={agency.cme} onChange={v => updateField('cme', v)} description="Calidad de métricas y data disponible" />
-              <SliderInput label="CEC (Cap. Estratégica Comercial)" code="CEC" value={agency.cec} onChange={v => updateField('cec', v)} description="Capacidad comercial y de crecimiento" />
-              <SliderInput label="CEI (Cap. Estratégica Institucional)" code="CEI" value={agency.cei} onChange={v => updateField('cei', v)} description="Madurez institucional y governance" />
-              <SliderInput label="DET (Dependencia Estratégica Total)" code="DET" value={agency.det} onChange={v => updateField('det', v)} description="Nivel de dependencia estratégica" />
+              <SliderInput label="CME (Calidad Métrica Estratégica)" code="CME" value={agency.cme} baseline={baseAgency.cme} onChange={v => updateField('cme', v)} description="Calidad de métricas y data disponible" disabled={!simulating} />
+              <SliderInput label="CEC (Cap. Estratégica Comercial)" code="CEC" value={agency.cec} baseline={baseAgency.cec} onChange={v => updateField('cec', v)} description="Capacidad comercial y de crecimiento" disabled={!simulating} />
+              <SliderInput label="CEI (Cap. Estratégica Institucional)" code="CEI" value={agency.cei} baseline={baseAgency.cei} onChange={v => updateField('cei', v)} description="Madurez institucional y governance" disabled={!simulating} />
+              <SliderInput label="DET (Dependencia Estratégica Total)" code="DET" value={agency.det} baseline={baseAgency.det} onChange={v => updateField('det', v)} description="Nivel de dependencia estratégica" disabled={!simulating} />
             </div>
           </div>
         </div>
@@ -270,9 +301,15 @@ export default function AgencyDetail() {
               min={0}
               max={100}
               step={1}
+              disabled={!simulating}
               className="flex-1"
             />
-            <span className="text-lg font-bold font-mono text-primary min-w-[50px] text-right">{agency.dec}%</span>
+            <div className="flex items-baseline gap-2 min-w-[90px] justify-end">
+              {agency.dec !== baseAgency.dec && (
+                <span className="text-[10px] font-mono text-muted-foreground line-through">{baseAgency.dec}%</span>
+              )}
+              <span className={`text-lg font-bold font-mono ${agency.dec !== baseAgency.dec ? 'text-accent' : 'text-primary'}`}>{agency.dec}%</span>
+            </div>
           </div>
           <p className="text-[10px] text-muted-foreground mt-1">% de facturación proveniente de Quantum Group</p>
         </div>

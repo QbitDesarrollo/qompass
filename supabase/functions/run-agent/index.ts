@@ -144,6 +144,52 @@ async function runRiskRadar(agentId: string, runId: string) {
   return { alertsCreated: alerts.length, summary: `${alerts.length} alertas + reporte de riesgo.` };
 }
 
+/* ---------- DSCR Watchdog (alertas determinísticas) ---------- */
+
+async function runDscrWatchdog(agentId: string, runId: string) {
+  const sb = admin();
+  const alerts: Array<Record<string, unknown>> = [];
+  for (const a of AGENCIES) {
+    if (!a.debtService || a.debtService <= 0) {
+      if (a.operatingCashflow > 400_000 && a.nivel <= 2) {
+        alerts.push({
+          agent_id: agentId, run_id: runId, severity: "info",
+          title: `${a.name}: capacidad ociosa de leverage`,
+          body: `OCF ${fmtCurrency(a.operatingCashflow)} sin deuda. Evaluar leverage.`,
+          entity_type: "agency", entity_id: a.id, metric: "leverage_capacity",
+        });
+      }
+      continue;
+    }
+    const d = calcDSCR(a);
+    const s = dscrStatus(d);
+    if (s === "riesgo") {
+      alerts.push({
+        agent_id: agentId, run_id: runId, severity: "critical",
+        title: `${a.name}: DSCR en riesgo (${d.toFixed(2)}x)`,
+        body: `OCF ${fmtCurrency(a.operatingCashflow)} vs deuda ${fmtCurrency(a.debtService)}.`,
+        entity_type: "agency", entity_id: a.id, metric: "dscr",
+      });
+    } else if (s === "aceptable") {
+      alerts.push({
+        agent_id: agentId, run_id: runId, severity: "warning",
+        title: `${a.name}: DSCR aceptable (${d.toFixed(2)}x)`,
+        body: `Cobertura limitada. Sin margen para nueva deuda.`,
+        entity_type: "agency", entity_id: a.id, metric: "dscr",
+      });
+    } else if (d >= 2.5) {
+      alerts.push({
+        agent_id: agentId, run_id: runId, severity: "info",
+        title: `${a.name}: capacidad ociosa (DSCR ${d.toFixed(2)}x)`,
+        body: `Cobertura holgada. Evaluar deuda adicional para acelerar M&A.`,
+        entity_type: "agency", entity_id: a.id, metric: "leverage_capacity",
+      });
+    }
+  }
+  if (alerts.length) await sb.from("agent_alerts").insert(alerts);
+  return { alertsCreated: alerts.length, summary: `${alerts.length} señales DSCR (cron).` };
+}
+
 /* ---------- LLM-only agents ---------- */
 
 async function runLLMAgent(agentId: string, runId: string, opts: {
@@ -216,6 +262,36 @@ const LLM_AGENTS: Record<string, { systemPrompt: string; userPrompt: string; con
     context: () => ({ snapshot: SNAPSHOT() }),
     kind: "stakeholder_comms", titlePrefix: "Comms pack",
   },
+  "index-tracker": {
+    systemPrompt: `Eres Index Tracker. Calculá IPE/IPP/IPC del snapshot y reportá agencias listas para transición de nivel (N4→N3 IPE>3.8, N3→N2 IPP>3.8, N2→N1 IPC>4 + rev>$1M + margin>10%). Markdown con tablas.`,
+    userPrompt: `Reporte mensual de index tracking. Conciso y accionable.`,
+    context: () => ({ snapshot: SNAPSHOT() }),
+    kind: "index_tracking", titlePrefix: "Index Tracker",
+  },
+  "ic-memo-writer": {
+    systemPrompt: `Eres IC Memo Writer. Generá memo template de Investment Committee con executive summary, rationale, financials, tesis, riesgos, valuación, sinergias y recomendación. Tono institucional.`,
+    userPrompt: `Generá un memo IC template para un deal genérico del pipeline LATAM.`,
+    context: () => ({ snapshot: SNAPSHOT() }),
+    kind: "ic_memo", titlePrefix: "IC Memo",
+  },
+  "founder-risk-mitigator": {
+    systemPrompt: `Eres Founder Risk Mitigator. Para cada agencia con IRF>=3.5 generá plan de mitigación 90 días: documentar, formar #2, diversificar comercial, KPI de transferencia. Específico por agencia.`,
+    userPrompt: `Generá los planes de mitigación de riesgo fundador.`,
+    context: () => ({ snapshot: SNAPSHOT() }),
+    kind: "founder_risk_plan", titlePrefix: "Founder Risk Plan",
+  },
+  "scenario-simulator": {
+    systemPrompt: `Eres Scenario Simulator. Generá 3 escenarios what-if combinando deals + ascensos + ajustes de capital. Para cada uno: acciones, impacto en EBITDA consolidado, exit value (8x), DSCR del grupo y capital requerido.`,
+    userPrompt: `Corré 3 escenarios concretos para evaluar este trimestre.`,
+    context: () => ({ snapshot: SNAPSHOT() }),
+    kind: "scenario_simulation", titlePrefix: "Scenarios",
+  },
+  "lp-investor-updater": {
+    systemPrompt: `Eres LP Investor Updater. Redactá update trimestral institucional a LPs: performance, highlights, lo que no salió, capital deployment, outlook 90d. Tono sobrio tipo Brookfield/Howard Marks. Sin inventar números.`,
+    userPrompt: `Redactá el LP update del trimestre con datos reales del snapshot.`,
+    context: () => ({ snapshot: SNAPSHOT() }),
+    kind: "lp_update", titlePrefix: "LP Update",
+  },
 };
 
 /* ---------- Main handler ---------- */
@@ -254,9 +330,11 @@ serve(async (req) => {
       result = await runSentinel(agentId, runId);
     } else if (slug === "risk-radar") {
       result = await runRiskRadar(agentId, runId);
-    } else if (slug === "agency-copilot") {
+    } else if (slug === "dscr-watchdog") {
+      result = await runDscrWatchdog(agentId, runId);
+    } else if (slug === "agency-copilot" || slug === "meeting-prep") {
       // requiere parámetro — no se schedulea, se ejecuta on-demand desde el frontend
-      throw new Error("agency-copilot requires per-agency parameter; use frontend runner");
+      throw new Error(`${slug} requires per-agency parameter; use frontend runner`);
     } else if (LLM_AGENTS[slug]) {
       const cfg = LLM_AGENTS[slug];
       result = await runLLMAgent(agentId, runId, {

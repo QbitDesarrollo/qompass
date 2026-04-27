@@ -114,7 +114,9 @@ export default function AgenciesPage() {
                       <td className="py-3 px-4 text-right font-mono text-xs">{ipp.toFixed(2)}</td>
                       <td className="py-3 px-4 text-right font-mono text-xs">{ipc.toFixed(2)}</td>
                       <td className="py-3 px-4">
-                        {ascension && <AscensionBadge type={ascension.type} />}
+                        {ascension
+                          ? <AscensionBadge type={ascension.type} />
+                          : <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground/80 px-2 py-0.5 rounded-md bg-muted/30 border border-border/40">✓ Consolidada</span>}
                       </td>
                     </tr>
                   );

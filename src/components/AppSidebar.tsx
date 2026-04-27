@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Building2, Swords, FileStack, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useAppSidebar } from './SidebarContext';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -11,7 +11,7 @@ const navItems = [
 
 export default function AppSidebar() {
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, toggle } = useAppSidebar();
 
   return (
     <aside className={`fixed left-0 top-0 h-screen bg-card border-r border-border flex flex-col z-50 transition-all duration-300 ${collapsed ? 'w-16' : 'w-56'}`}>
@@ -49,7 +49,7 @@ export default function AppSidebar() {
       </nav>
 
       <button
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={toggle}
         className="p-3 border-t border-border text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
       >
         {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}

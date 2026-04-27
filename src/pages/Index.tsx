@@ -9,12 +9,37 @@ import InfoTooltip from '@/components/InfoTooltip';
 import PeriodSelector from '@/components/PeriodSelector';
 import DeltaBadge from '@/components/DeltaBadge';
 import { mockAgencies } from '@/lib/mock-data';
-import { formatCurrency, formatPercent, getConsolidatedEbitda, getAscensionOpportunity, calcIPE, calcIPP, calcIPC, calcDSCR, getDSCRStatus, NIVELES } from '@/lib/quantum-engine';
-import { Period, currentPeriod, getSnapshot, previousPeriod, yoyPeriod, getDualDelta, formatPeriod } from '@/lib/historical-data';
+import { Agency, formatCurrency, formatPercent, getAscensionOpportunity, calcDSCR, getDSCRStatus, NIVELES } from '@/lib/quantum-engine';
+import { Period, currentPeriod, getSnapshot, previousPeriod, yoyPeriod, getDualDelta, formatPeriod, getAllAgencyMetrics } from '@/lib/historical-data';
+import { useSimulation } from '@/lib/simulation-store';
 import { Link } from 'react-router-dom';
 
 export default function Dashboard() {
   const [period, setPeriod] = useState<Period>(() => currentPeriod('last12'));
+  const { applyOverrides } = useSimulation();
+
+  /**
+   * Vista de las agencias alineada al periodo seleccionado y con
+   * los overrides de simulación aplicados. Es la MISMA fuente de
+   * verdad que usa el War Room, para que el ranking de "Prioridad
+   * de Capital" sea idéntico en ambos módulos.
+   */
+  const periodAgencies = useMemo<Agency[]>(() => {
+    const metrics = getAllAgencyMetrics(period);
+    return mockAgencies.map(a => {
+      const m = metrics[a.id];
+      const periodView = (!m || !m.available) ? a : {
+        ...a,
+        revenue: m.revenue,
+        agi: m.agi,
+        ebitda: m.ebitda,
+        operatingCashflow: m.operatingCashflow,
+        debtService: m.debtService,
+        margin: m.margin,
+      };
+      return applyOverrides(periodView);
+    });
+  }, [period, applyOverrides]);
 
   const { snap, prev, yoy, deltas } = useMemo(() => {
     const s = getSnapshot(period);
@@ -37,20 +62,20 @@ export default function Dashboard() {
   }, [period]);
 
   const stats = useMemo(() => {
-    const byNivel = NIVELES.map(n => ({ nivel: n, count: mockAgencies.filter(a => a.nivel === n).length }));
-    const dscrBuckets = mockAgencies.reduce((acc, a) => {
+    const byNivel = NIVELES.map(n => ({ nivel: n, count: periodAgencies.filter(a => a.nivel === n).length }));
+    const dscrBuckets = periodAgencies.reduce((acc, a) => {
       const st = getDSCRStatus(calcDSCR(a));
       acc[st] = (acc[st] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
     return { byNivel, dscrBuckets };
-  }, []);
+  }, [periodAgencies]);
 
   const topAgencies = useMemo(() => {
-    return [...mockAgencies]
+    return [...periodAgencies]
       .sort((a, b) => (b.ebitda * b.equity / 100) - (a.ebitda * a.equity / 100))
       .slice(0, 6);
-  }, []);
+  }, [periodAgencies]);
 
   return (
     <AppLayout>

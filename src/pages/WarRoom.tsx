@@ -164,7 +164,7 @@ export default function WarRoom() {
                 onValueChange={([v]) => setStandaloneMultiple(v)}
                 min={1}
                 max={7}
-                step={0.5}
+                step={0.25}
               />
               <div className="flex justify-between text-[9px] text-muted-foreground">
                 <span>1x</span><span>7x</span>

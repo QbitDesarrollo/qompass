@@ -6,9 +6,9 @@ const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/agencies', label: 'Agencias', icon: Building2 },
   { path: '/war-room', label: 'War Room', icon: Swords },
-  { path: '/playbooks', label: 'Playbooks', icon: BookOpen },
   { path: '/deals', label: 'Deals', icon: Briefcase },
   { path: '/data-room', label: 'Data Room', icon: FileStack },
+  { path: '/playbooks', label: 'Playbooks', icon: BookOpen },
 ];
 
 export default function AppSidebar() {

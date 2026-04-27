@@ -139,6 +139,97 @@ function ActionBadge({ tone, children }: { tone: 'primary' | 'accent' | 'warning
   );
 }
 
+/** Tooltip explicando cómo se calculó el score de prioridad de capital (header). */
+function ScoreFormulaTooltip() {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label="Cómo se calcula el score"
+          className="p-0.5 rounded-md text-muted-foreground hover:text-foreground transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Info className="w-3 h-3" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" align="start" className="max-w-sm p-3 space-y-2 text-xs">
+        <div>
+          <div className="font-semibold text-foreground">Score de Prioridad de Capital</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">
+            Ranking 0–100 que prioriza dónde desplegar el próximo dólar de capital del grupo.
+          </div>
+        </div>
+        <div className="rounded-md bg-secondary/40 border border-border/40 p-2 font-mono text-[10px] text-foreground leading-relaxed">
+          Score =<br />
+          &nbsp;&nbsp;0.60 × <span className="text-primary">EBITDA Score</span><br />
+          + 0.30 × <span className="text-accent">Capacity Score</span><br />
+          + 0.10 × <span className="text-yellow-400">Ascension Score</span>
+        </div>
+        <div className="space-y-1.5">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">EBITDA Score (60%)</div>
+            <div className="text-foreground/90">EBITDA de la agencia ÷ máximo EBITDA del set × 100. Premia rentabilidad probada.</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Capacity Score (30%)</div>
+            <div className="text-foreground/90">Deuda adicional soportable ÷ máxima del set × 100. Calculada con DSCR objetivo 1.5x, plazo 6 años, tasa 10%.</div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ascension Score (10%)</div>
+            <div className="text-foreground/90">100 si la agencia califica para subir de nivel (IPE/IPP/IPC sobre umbral); 0 en caso contrario.</div>
+          </div>
+        </div>
+        <div className="pt-1 border-t border-border/40 text-[10px] text-muted-foreground">
+          Los cuadrantes (Deploy / Optimize / Investigate / Restructure) se asignan por mediana de EBITDA y capacidad — son independientes del score.
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/** Tooltip por agencia con el desglose individual del score. */
+function ScoreBreakdownTooltip({ p }: { p: CapitalPriority }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Desglose del score de ${p.agency.name}`}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Info className="w-3 h-3" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="left" className="max-w-xs p-3 space-y-2 text-xs">
+        <div className="font-semibold text-foreground">{p.agency.name} — Score {p.score.toFixed(1)}</div>
+        <div className="space-y-1 font-mono text-[11px]">
+          <div className="flex justify-between">
+            <span className="text-primary">EBITDA Score</span>
+            <span className="text-foreground">{p.ebitdaScore.toFixed(1)} × 0.60 = {(p.ebitdaScore * 0.6).toFixed(1)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-accent">Capacity Score</span>
+            <span className="text-foreground">{p.capacityScore.toFixed(1)} × 0.30 = {(p.capacityScore * 0.3).toFixed(1)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-yellow-400">Ascension</span>
+            <span className="text-foreground">{p.ascensionScore.toFixed(0)} × 0.10 = {(p.ascensionScore * 0.1).toFixed(1)}</span>
+          </div>
+          <div className="border-t border-border/40 pt-1 flex justify-between font-bold">
+            <span className="text-foreground">Total</span>
+            <span className="text-foreground">{p.score.toFixed(1)} / 100</span>
+          </div>
+        </div>
+        <div className="text-[10px] text-muted-foreground pt-1 border-t border-border/40">
+          Cuadrante: <span className="text-foreground font-medium">{QUADRANT_META[p.quadrant].label}</span>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 /** Wrapper que renderiza <button> si hay onSelect, o <Link> si no. Evita warnings de ref. */
 function AgencyAction({
   agencyId,
@@ -292,7 +383,10 @@ function PriorityList({ priorities, limit, onSelect, selectedId, simulatedIds }:
             </div>
             <div className="text-right shrink-0">
               <div className={`text-base font-bold font-mono ${tone.text}`}>{p.score.toFixed(0)}</div>
-              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">score</div>
+              <div className="flex items-center justify-end gap-1 text-[9px] text-muted-foreground uppercase tracking-wider">
+                score
+                <ScoreBreakdownTooltip p={p} />
+              </div>
             </div>
             <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
           </AgencyAction>
@@ -343,7 +437,10 @@ export default function CapitalPriorityWidget({
             </div>
             <div>
               <h3 className="text-sm font-semibold text-foreground">Prioridad de Capital</h3>
-              <p className="text-[10px] text-muted-foreground">Top 3 · 60% EBITDA + 30% capacidad + 10% ascenso</p>
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                Top 3 · 60% EBITDA + 30% capacidad + 10% ascenso
+                <ScoreFormulaTooltip />
+              </p>
             </div>
           </div>
           <Link to="/war-room" className="text-xs text-primary hover:underline">Ver matriz →</Link>
@@ -368,9 +465,10 @@ export default function CapitalPriorityWidget({
           </div>
           <div>
             <h3 className="text-sm font-semibold text-foreground">Prioridad de Despliegue de Capital</h3>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[10px] text-muted-foreground inline-flex items-center gap-1 flex-wrap">
               Score = 60% EBITDA · 30% capacidad de deuda adicional · 10% momentum de ascenso · DSCR objetivo {targetDSCR.toFixed(2)}x
-              {onSelectAgency ? ' · Click para seleccionar agencia' : ''}
+              <ScoreFormulaTooltip />
+              {onSelectAgency ? <span>· Click para seleccionar agencia</span> : null}
             </p>
           </div>
         </div>

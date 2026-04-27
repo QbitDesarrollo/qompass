@@ -3,6 +3,7 @@ import AppLayout from '@/components/AppLayout';
 import { mockAgencies } from '@/lib/mock-data';
 import { VERTICALS, Vertical, NivelIntegracion, formatCurrency, getConsolidatedEbitda, Agency, calcDSCR, calcLeverageCapacity, getDSCRStatus } from '@/lib/quantum-engine';
 import { DSCRBadge } from '@/components/StatusBadges';
+import CapitalPriorityWidget from '@/components/CapitalPriorityWidget';
 import { Swords, ArrowRight, TrendingUp, Shield, Zap, DollarSign, Sparkles, Banknote, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { Slider } from '@/components/ui/slider';

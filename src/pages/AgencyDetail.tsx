@@ -146,10 +146,8 @@ export default function AgencyDetail() {
   const { id } = useParams();
   const baseAgency = mockAgencies.find(a => a.id === id);
 
-  const { overridesByAgency, setAgencyOverrides, clearAgency } = useSimulation();
-  const [simulating, setSimulating] = useState<boolean>(() =>
-    !!(id && overridesByAgency[id] && Object.keys(overridesByAgency[id]).length > 0),
-  );
+  const { overridesByAgency, setAgencyOverrides, clearAgency, setSimulationEnabled, isSimulationEnabled } = useSimulation();
+  const simulating = baseAgency ? isSimulationEnabled(baseAgency.id) : false;
   const [period, setPeriod] = useState<Period>(() => currentPeriod('month'));
   
   if (!baseAgency) {
@@ -239,17 +237,17 @@ export default function AgencyDetail() {
   const hasChanges = Object.keys(overrides).length > 0;
 
   const toggleSimulating = (v: boolean) => {
+    if (!baseAgency) return;
+    setSimulationEnabled(baseAgency.id, v);
     if (!v) {
-      clearAgency(baseAgency.id);
       toast(`Simulación desactivada para ${baseAgency.name}`, {
         description: 'Los cambios fueron descartados. War Room mostrará valores reales.',
       });
     } else {
       toast.info(`Modo Simulación activado — ${baseAgency.name}`, {
-        description: 'Los cambios se reflejarán automáticamente en War Room.',
+        description: 'La agencia se marcará como Simulada en War Room aunque no muevas los sliders.',
       });
     }
-    setSimulating(v);
   };
 
   return (

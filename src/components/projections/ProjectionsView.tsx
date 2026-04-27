@@ -3,6 +3,7 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { Sparkles, TrendingUp, AlertTriangle, CheckCircle2, Target, Calendar, RefreshCw } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -308,14 +309,44 @@ function SummaryCard({ label, value, hint, tone = 'default' }: { label: string; 
   );
 }
 
-function AssumptionSlider({ label, value, min, max, step, format, onChange }: { label: string; value: number; min: number; max: number; step: number; format: (v: number) => string; onChange: (v: number) => void }) {
+function AssumptionSlider({ label, value, min, max, step, format, onChange, unit = 'pct' }: { label: string; value: number; min: number; max: number; step: number; format: (v: number) => string; onChange: (v: number) => void; unit?: 'pct' | 'raw' }) {
+  // Para supuestos en decimal (0.15 = 15%) mostramos el input como porcentaje editable.
+  const toDisplay = (v: number) => unit === 'pct' ? +(v * 100).toFixed(3) : +v.toFixed(4);
+  const fromDisplay = (v: number) => unit === 'pct' ? v / 100 : v;
+  const [text, setText] = useState<string>(String(toDisplay(value)));
+
+  useEffect(() => { setText(String(toDisplay(value))); }, [value]);
+
+  const commit = (raw: string) => {
+    const num = parseFloat(raw.replace(',', '.'));
+    if (!isFinite(num)) { setText(String(toDisplay(value))); return; }
+    const next = clamp(fromDisplay(num), min, max);
+    onChange(next);
+    setText(String(toDisplay(next)));
+  };
+
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <span className="text-xs text-muted-foreground">{label}</span>
-        <span className="text-xs font-mono text-foreground">{format(value)}</span>
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onBlur={e => commit(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+            step={unit === 'pct' ? step * 100 : step}
+            className="h-6 w-20 px-1.5 py-0 text-xs font-mono text-right"
+          />
+          {unit === 'pct' && <span className="text-[10px] text-muted-foreground font-mono">%</span>}
+        </div>
       </div>
       <Slider value={[value]} min={min} max={max} step={step} onValueChange={([v]) => onChange(v)} />
+      <div className="flex justify-between text-[9px] text-muted-foreground/60 font-mono">
+        <span>{format(min)}</span>
+        <span>{format(max)}</span>
+      </div>
     </div>
   );
 }

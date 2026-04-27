@@ -196,10 +196,11 @@ export default function WarRoom() {
             </h3>
             <div className="space-y-2 max-h-[280px] overflow-y-auto">
               <div className="grid grid-cols-12 gap-2 px-3 pb-1 text-[9px] uppercase tracking-wider text-muted-foreground border-b border-border">
-                <span className="col-span-5">Agencia</span>
+                <span className="col-span-4">Agencia</span>
                 <span className="col-span-1 text-center">Niv</span>
-                <span className="col-span-3 text-right">Revenue</span>
-                <span className="col-span-3 text-right">EBITDA</span>
+                <span className="col-span-2 text-right">Revenue</span>
+                <span className="col-span-2 text-right">EBITDA</span>
+                <span className="col-span-3 text-right">Op. Cashflow</span>
               </div>
               {mockAgencies.filter(a => a.vertical === selectedVertical).map(a => {
                 const isSelected = selectedAgencyId === a.id;
@@ -216,10 +217,11 @@ export default function WarRoom() {
                         : 'bg-secondary/30 hover:bg-secondary/50'
                     }`}
                   >
-                    <span className={`col-span-5 font-medium truncate ${isSelected ? 'text-primary' : 'text-foreground'}`}>{a.name}</span>
+                    <span className={`col-span-4 font-medium truncate ${isSelected ? 'text-primary' : 'text-foreground'}`}>{a.name}</span>
                     <span className="col-span-1 text-center text-muted-foreground">N{a.nivel}</span>
-                    <span className="col-span-3 text-right font-mono text-foreground">{formatCurrency(a.revenue)}</span>
-                    <span className="col-span-3 text-right font-mono text-primary">{formatCurrency(a.ebitda)}</span>
+                    <span className="col-span-2 text-right font-mono text-foreground">{formatCurrency(a.revenue)}</span>
+                    <span className="col-span-2 text-right font-mono text-primary">{formatCurrency(a.ebitda)}</span>
+                    <span className="col-span-3 text-right font-mono text-accent">{formatCurrency(a.operatingCashflow)}</span>
                   </button>
                 );
               })}
@@ -227,11 +229,13 @@ export default function WarRoom() {
                 const list = mockAgencies.filter(a => a.vertical === selectedVertical);
                 const totalRev = list.reduce((s, a) => s + a.revenue, 0);
                 const totalEbitda = list.reduce((s, a) => s + a.ebitda, 0);
+                const totalOCF = list.reduce((s, a) => s + a.operatingCashflow, 0);
                 return (
                   <div className="grid grid-cols-12 gap-2 items-center px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-xs font-semibold">
-                    <span className="col-span-6 text-muted-foreground uppercase tracking-wider text-[10px]">Total ({list.length})</span>
-                    <span className="col-span-3 text-right font-mono text-foreground">{formatCurrency(totalRev)}</span>
-                    <span className="col-span-3 text-right font-mono text-primary">{formatCurrency(totalEbitda)}</span>
+                    <span className="col-span-5 text-muted-foreground uppercase tracking-wider text-[10px]">Total ({list.length})</span>
+                    <span className="col-span-2 text-right font-mono text-foreground">{formatCurrency(totalRev)}</span>
+                    <span className="col-span-2 text-right font-mono text-primary">{formatCurrency(totalEbitda)}</span>
+                    <span className="col-span-3 text-right font-mono text-accent">{formatCurrency(totalOCF)}</span>
                   </div>
                 );
               })()}

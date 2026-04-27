@@ -118,14 +118,14 @@ export default function FinancialValidationWidget({
                 value={formatCurrency(ds.interest)}
                 sign="+"
                 tone="destructive"
-                tip={`Componente financiero del Debt Service. Se restará en la cascada para calcular EBT (Earnings Before Taxes). Tasa implícita asumida: ${(FIN_ASSUMPTIONS.interestRate * 100).toFixed(1)}%.`}
+                tip={`Calculado como Deuda × ${(FIN_ASSUMPTIONS.interestRate * 100).toFixed(1)}% (año 1 de un préstamo francés a ${FIN_ASSUMPTIONS.loanTermYears} años). Se resta en la cascada para calcular EBT.`}
               />
               <Row
                 label="Pago de Principal (Capital)"
                 value={formatCurrency(ds.principal)}
                 sign="+"
                 tone="muted"
-                tip="Amortización del capital de la deuda. NO afecta EBITDA ni Net Income (es movimiento de balance), pero sí consume caja y por eso entra en DSCR."
+                tip="Amortización del capital = Cuota − Intereses. NO afecta EBITDA ni Net Income (es movimiento de balance), pero sí consume caja y por eso entra en DSCR."
               />
               <div className="border-t border-border/40 my-1" />
               <Row
@@ -149,6 +149,17 @@ export default function FinancialValidationWidget({
                 <div className="text-[9px] text-muted-foreground uppercase">Deuda implícita</div>
                 <div className="text-sm font-mono text-muted-foreground">{formatCurrency(ds.impliedDebt)}</div>
               </div>
+            </div>
+
+            <div className="mt-2 rounded-md bg-secondary/20 border border-border/40 p-2">
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                <span className="font-semibold text-foreground">Método:</span> Sistema francés (cuota constante).
+                Tasa <span className="font-mono text-destructive">{(ds.rate * 100).toFixed(1)}%</span> ·
+                Plazo <span className="font-mono">{ds.termYears} años</span>.
+                Deuda despejada como{' '}
+                <span className="font-mono">Cuota × (1−(1+i)⁻ⁿ)/i</span>.
+                Interés mostrado = año 1 (máximo).
+              </p>
             </div>
 
             {/* Barra visual del split */}

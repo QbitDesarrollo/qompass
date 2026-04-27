@@ -177,18 +177,35 @@ export default function WarRoom() {
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Agencias en {selectedVertical}
             </h3>
-            <div className="space-y-2 max-h-[250px] overflow-y-auto">
+            <div className="space-y-2 max-h-[280px] overflow-y-auto">
+              <div className="grid grid-cols-12 gap-2 px-3 pb-1 text-[9px] uppercase tracking-wider text-muted-foreground border-b border-border">
+                <span className="col-span-5">Agencia</span>
+                <span className="col-span-1 text-center">Niv</span>
+                <span className="col-span-3 text-right">Revenue</span>
+                <span className="col-span-3 text-right">EBITDA</span>
+              </div>
               {mockAgencies.filter(a => a.vertical === selectedVertical).map(a => (
-                <div key={a.id} className={`flex items-center justify-between px-3 py-2 rounded-lg bg-secondary/30 text-xs ${
+                <div key={a.id} className={`grid grid-cols-12 gap-2 items-center px-3 py-2 rounded-lg bg-secondary/30 text-xs ${
                   simulation?.targetAgencies.some(t => t.id === a.id) ? 'ring-1 ring-accent/50' : ''
                 }`}>
-                  <div>
-                    <span className="text-foreground font-medium">{a.name}</span>
-                    <span className="text-muted-foreground ml-2">N{a.nivel}</span>
-                  </div>
-                  <span className="font-mono text-primary">{formatCurrency(a.ebitda)}</span>
+                  <span className="col-span-5 text-foreground font-medium truncate">{a.name}</span>
+                  <span className="col-span-1 text-center text-muted-foreground">N{a.nivel}</span>
+                  <span className="col-span-3 text-right font-mono text-foreground">{formatCurrency(a.revenue)}</span>
+                  <span className="col-span-3 text-right font-mono text-primary">{formatCurrency(a.ebitda)}</span>
                 </div>
               ))}
+              {(() => {
+                const list = mockAgencies.filter(a => a.vertical === selectedVertical);
+                const totalRev = list.reduce((s, a) => s + a.revenue, 0);
+                const totalEbitda = list.reduce((s, a) => s + a.ebitda, 0);
+                return (
+                  <div className="grid grid-cols-12 gap-2 items-center px-3 py-2 rounded-lg bg-primary/5 border border-primary/20 text-xs font-semibold">
+                    <span className="col-span-6 text-muted-foreground uppercase tracking-wider text-[10px]">Total ({list.length})</span>
+                    <span className="col-span-3 text-right font-mono text-foreground">{formatCurrency(totalRev)}</span>
+                    <span className="col-span-3 text-right font-mono text-primary">{formatCurrency(totalEbitda)}</span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

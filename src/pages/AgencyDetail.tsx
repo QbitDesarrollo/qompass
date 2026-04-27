@@ -9,6 +9,7 @@ import { Info, FileText, Sparkles, RotateCcw } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 
 const INDEX_INFO: Record<string, string> = {
   IPE: 'Índice de Poder Estratégico. Mide la capacidad de Quantum Group para influir estratégicamente sobre la agencia. Fórmula: (DEC/100·5)·0.35 + CME·0.35 + IIO·0.15 + (6−IS)·0.15. Umbral 3.8 activa transición Fase 4→3.',
@@ -193,31 +194,41 @@ export default function AgencyDetail() {
               {agency.vertical} · {agency.country} · {NIVEL_LABELS[agency.nivel]}
             </p>
           </div>
-          <div className="flex items-center gap-2 ml-auto flex-shrink-0">
+        </div>
+
+        {/* Mode toggle bar — sticky, imposible de no ver */}
+        <div className={`sticky top-0 z-30 -mx-6 px-6 py-3 backdrop-blur-md border-b transition-colors ${simulating ? 'bg-accent/10 border-accent/40' : 'bg-background/90 border-border'}`}>
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className={`p-2 rounded-lg ${simulating ? 'bg-accent/20' : 'bg-secondary'}`}>
+              {simulating ? <Sparkles className="w-5 h-5 text-accent" /> : <FileText className="w-5 h-5 text-primary" />}
+            </div>
+            <div className="flex-1 min-w-[200px]">
+              <p className="text-sm font-semibold text-foreground">
+                {simulating ? 'Modo Simulación' : 'Valores sincronizados de documentos'}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {simulating
+                  ? 'Mueve los sliders para proyectar escenarios. Barras difuminadas = simulación.'
+                  : 'Data room, financials, due diligence. Activa el modo para simular cambios.'}
+              </p>
+            </div>
             {simulating && hasChanges && (
               <Button variant="ghost" size="sm" onClick={resetSim} className="text-xs">
                 <RotateCcw className="w-3 h-3" /> Reset
               </Button>
             )}
-            <Button
-              variant={simulating ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => { if (simulating) resetSim(); setSimulating(s => !s); }}
-              className={`text-xs ${simulating ? '' : 'border-accent/50 text-accent hover:bg-accent/10 hover:text-accent'}`}
-            >
-              {simulating ? <><Sparkles className="w-3 h-3" /> Simulación activa</> : <><Sparkles className="w-3 h-3" /> Simular escenario</>}
-            </Button>
+            <label className="flex items-center gap-3 cursor-pointer select-none">
+              <span className={`text-xs font-mono uppercase tracking-wider ${simulating ? 'text-accent' : 'text-muted-foreground'}`}>
+                {simulating ? 'ON' : 'OFF'}
+              </span>
+              <Switch
+                checked={simulating}
+                onCheckedChange={(v) => { if (!v) resetSim(); setSimulating(v); }}
+                className="data-[state=checked]:bg-accent scale-125"
+              />
+              <span className="text-xs font-semibold text-foreground hidden sm:inline">Simulación</span>
+            </label>
           </div>
-        </div>
-
-        {/* Mode banner */}
-        <div className={`flex items-center gap-3 p-3 rounded-xl border text-xs ${simulating ? 'border-accent/30 bg-accent/5' : 'border-border bg-secondary/30'}`}>
-          {simulating ? <Sparkles className="w-4 h-4 text-accent flex-shrink-0" /> : <FileText className="w-4 h-4 text-primary flex-shrink-0" />}
-          <p className="text-muted-foreground">
-            {simulating
-              ? <>Modo <span className="text-accent font-semibold">Simulación</span> — los sliders permiten proyectar escenarios. Las barras difuminadas muestran el valor simulado vs. el baseline sincronizado.</>
-              : <>Valores <span className="text-primary font-semibold">sincronizados de documentos</span> de la agencia (data room, financials, due diligence). Activa Simulación para modificar.</>}
-          </p>
         </div>
 
         {/* Ascension Alert */}

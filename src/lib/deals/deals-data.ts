@@ -212,6 +212,34 @@ export interface Deal {
   inputs: DealInputs;
   ddStatus: Record<string, 'pending' | 'review' | 'complete' | 'redflag'>;
   createdAt: string;
+  company?: CompanyInfo;
+  templates?: Record<DealStage, StageTemplate | undefined>;
+}
+
+export interface CompanyInfo {
+  legalName: string;     // razón social
+  tradeName: string;     // nombre comercial
+  taxId: string;         // RUC / RFC / NIT
+  sellerName: string;
+  contactPhone: string;
+  whatsapp: string;
+  email: string;
+  address: string;
+}
+
+export function emptyCompany(): CompanyInfo {
+  return {
+    legalName: '', tradeName: '', taxId: '',
+    sellerName: '', contactPhone: '', whatsapp: '',
+    email: '', address: '',
+  };
+}
+
+export interface StageTemplate {
+  subject: string;
+  body: string;
+  source: 'suggested' | 'uploaded' | 'manual' | 'ai';
+  updatedAt: string;
 }
 
 export const DEMO_DEALS: Deal[] = [

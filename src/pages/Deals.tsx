@@ -20,6 +20,7 @@ import {
 import { useDeals } from '@/lib/deals/deals-store';
 import {
   computeDeal, ddProgress, fmtCurrency, STAGE_META, DealStage,
+  emptyInputs,
 } from '@/lib/deals/deals-data';
 
 const STAGES: DealStage[] = ['sourcing','loi','dd','negotiation','closing','closed','lost'];
@@ -35,9 +36,6 @@ function NewDealDialog() {
   });
 
   const submit = () => {
-    const inputs = {
-      ...(window as any), // avoid eslint unused
-    };
     createDeal({
       name: form.name || 'Nuevo Deal',
       target: form.target,
@@ -46,7 +44,7 @@ function NewDealDialog() {
       stage: form.stage,
       thesis: form.thesis,
       inputs: {
-        ...require('@/lib/deals/deals-data').emptyInputs(),
+        ...emptyInputs(),
         ask: Number(form.ask) || 0,
         ebitda: Number(form.ebitda) || 0,
         sales: Number(form.sales) || 0,

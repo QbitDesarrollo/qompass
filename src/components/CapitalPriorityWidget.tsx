@@ -1,10 +1,11 @@
 import { useMemo, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Target, Zap, AlertTriangle, Wrench, Search, ArrowRight, Info, FlaskConical } from 'lucide-react';
+import { Target, Zap, AlertTriangle, Wrench, Search, ArrowRight, Info, FlaskConical, BookOpen } from 'lucide-react';
 import { mockAgencies } from '@/lib/mock-data';
 import { computeCapitalPriorities, formatCurrency, QUADRANT_META, PriorityQuadrant, CapitalPriority } from '@/lib/quantum-engine';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSimulation } from '@/lib/simulation-store';
+import { getPlaybookEligibility } from '@/lib/playbooks-data';
 
 const TONE_CLASSES: Record<'primary' | 'accent' | 'warning' | 'danger', { badge: string; dot: string; ring: string; text: string; bg: string }> = {
   primary: { badge: 'bg-primary/15 text-primary border-primary/30', dot: 'bg-primary', ring: 'ring-primary/40', text: 'text-primary', bg: 'bg-primary/10' },
@@ -408,19 +409,25 @@ function PriorityList({ priorities, limit, onSelect, selectedId, simulatedIds }:
         const Icon = QUADRANT_ICON[p.quadrant];
         const isSelected = selectedId === p.agency.id;
         const simulated = simulatedIds.has(p.agency.id);
+        const elig = getPlaybookEligibility(p);
         return (
-          <AgencyAction
+          <div
             key={p.agency.id}
-            agencyId={p.agency.id}
-            onSelect={onSelect}
-            className={`w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition-all group ${
+            className={`relative w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition-all group ${
               isSelected
                 ? 'bg-primary/10 border border-primary/40'
                 : simulated
                 ? 'bg-accent/5 border border-accent/30 hover:bg-accent/10'
+                : elig.eligible
+                ? 'bg-primary/[0.04] border border-primary/30 hover:bg-primary/10'
                 : 'bg-secondary/30 hover:bg-secondary/60 border border-transparent hover:border-border'
             }`}
           >
+            <AgencyAction
+              agencyId={p.agency.id}
+              onSelect={onSelect}
+              className="flex-1 min-w-0 flex items-center gap-3 text-left"
+            >
             <div className="flex items-center justify-center w-6 h-6 rounded-md bg-muted/40 text-[10px] font-mono text-muted-foreground">
               {i + 1}
             </div>
@@ -436,6 +443,11 @@ function PriorityList({ priorities, limit, onSelect, selectedId, simulatedIds }:
                     <FlaskConical className="w-2.5 h-2.5" /> Simulado
                   </span>
                 )}
+                {elig.eligible && (
+                  <span className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/30">
+                    <BookOpen className="w-2.5 h-2.5" /> Playbook ready
+                  </span>
+                )}
               </div>
               <div className="text-[10px] text-muted-foreground font-mono">
                 EBITDA {formatCurrency(p.ebitda)} · Cap. adicional +{formatCurrency(p.additionalDebt)} · {p.agency.vertical}
@@ -449,7 +461,19 @@ function PriorityList({ priorities, limit, onSelect, selectedId, simulatedIds }:
               </div>
             </div>
             <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-          </AgencyAction>
+            </AgencyAction>
+            {elig.eligible && (
+              <Link
+                to={`/playbooks/${p.agency.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                title="Esta agencia cumple score, cuadrante deploy, oportunidad de ascenso y DSCR ≥ 2.0x"
+              >
+                <BookOpen className="w-3 h-3" />
+                Ejecutar Playbook
+              </Link>
+            )}
+          </div>
         );
       })}
     </div>

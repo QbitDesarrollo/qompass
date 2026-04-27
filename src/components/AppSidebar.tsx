@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Building2, Swords, FileStack, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Building2, Swords, FileStack, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppSidebar } from './SidebarContext';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/agencies', label: 'Agencias', icon: Building2 },
   { path: '/war-room', label: 'War Room', icon: Swords },
+  { path: '/playbooks', label: 'Playbooks', icon: BookOpen },
   { path: '/data-room', label: 'Data Room', icon: FileStack },
 ];
 

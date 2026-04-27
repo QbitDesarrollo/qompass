@@ -14,6 +14,7 @@ import {
   deriveAssumptionsFromHistory, deriveGroupAssumptions,
   baselineFromHistory, groupBaseline, getStartFromHistory,
   getAgencyHistory, getTransitionPlan, TransitionPlan,
+  RevenuePlan, RevenuePlanYear,
 } from '@/lib/projections/projections-engine';
 import { ANCHOR_YEAR, ANCHOR_MONTH } from '@/lib/historical-data';
 
@@ -54,11 +55,14 @@ export default function ProjectionsView({ agency }: Props) {
   const [assumptions, setAssumptions] = useState<Assumptions>(initialAssumptions);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiRationale, setAiRationale] = useState<string | null>(null);
+  const [inputMode, setInputMode] = useState<'pct' | 'abs'>('pct');
+  const [revenuePlan, setRevenuePlan] = useState<RevenuePlan>([]);
 
   // Sync cuando cambia la agencia
   useEffect(() => {
     setAssumptions(initialAssumptions);
     setAiRationale(null);
+    setRevenuePlan([]);
   }, [initialAssumptions]);
 
   const scenarioAssumptions = useMemo(() => applyScenario(assumptions, scenario), [assumptions, scenario]);
@@ -66,13 +70,53 @@ export default function ProjectionsView({ agency }: Props) {
   const result = useMemo(() => forecast({
     baseline, startYear: start.startYear, startMonth: start.startMonth,
     horizon, assumptions: scenarioAssumptions, scenario,
-  }), [baseline, start, horizon, scenarioAssumptions, scenario]);
+    revenuePlan: inputMode === 'abs' ? revenuePlan : undefined,
+  }), [baseline, start, horizon, scenarioAssumptions, scenario, inputMode, revenuePlan]);
 
   // Calcular los 3 escenarios para overlay
   const allScenarios = useMemo(() => SCENARIOS.map(s => forecast({
     baseline, startYear: start.startYear, startMonth: start.startMonth,
     horizon, assumptions: applyScenario(assumptions, s), scenario: s,
-  })), [baseline, start, horizon, assumptions]);
+    revenuePlan: inputMode === 'abs' ? revenuePlan : undefined,
+  })), [baseline, start, horizon, assumptions, inputMode, revenuePlan]);
+
+  // Años cubiertos por el horizonte (mes siguiente al ancla → +horizon)
+  const planYears = useMemo(() => {
+    const ys = new Set<number>();
+    for (let i = 1; i <= horizon; i++) {
+      const total = start.startYear * 12 + (start.startMonth - 1) + i;
+      ys.add(Math.floor(total / 12));
+    }
+    return Array.from(ys).sort();
+  }, [start, horizon]);
+
+  // Sugerir un revenue anual cuando el usuario activa el modo absoluto y aún no hay plan
+  useEffect(() => {
+    if (inputMode !== 'abs') return;
+    setRevenuePlan(prev => {
+      const next = [...prev];
+      planYears.forEach(y => {
+        if (!next.find(p => p.year === y)) {
+          next.push({ year: y, annual: Math.round(baseline.revenue * 12) });
+        }
+      });
+      // limpiar años fuera del horizonte
+      return next.filter(p => planYears.includes(p.year));
+    });
+  }, [inputMode, planYears, baseline.revenue]);
+
+  const updatePlanYear = (year: number, patch: Partial<RevenuePlanYear>) => {
+    setRevenuePlan(prev => prev.map(p => p.year === year ? { ...p, ...patch } : p));
+  };
+  const updatePlanQuarter = (year: number, q: 1|2|3|4, value: number | null) => {
+    setRevenuePlan(prev => prev.map(p => {
+      if (p.year !== year) return p;
+      const quarters = { ...(p.quarters || {}) };
+      if (value === null || !isFinite(value) || value <= 0) delete quarters[q];
+      else quarters[q] = value;
+      return { ...p, quarters };
+    }));
+  };
 
   const chartData = useMemo(() => result.points.map((p, i) => ({
     label: formatYM(p.ym),
@@ -205,8 +249,30 @@ export default function ProjectionsView({ agency }: Props) {
       <div className="glass-card p-4 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-foreground">Supuestos del modelo</h3>
-          <span className="text-[10px] text-muted-foreground font-mono">Base · ajusta y se aplican los multiplicadores del escenario</span>
+          <div className="flex items-center gap-3">
+            <div className="inline-flex rounded-md border border-border bg-secondary/40 p-0.5">
+              <button
+                onClick={() => setInputMode('pct')}
+                className={`px-2.5 py-1 text-[11px] font-medium rounded transition-colors ${inputMode === 'pct' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                % Variación
+              </button>
+              <button
+                onClick={() => setInputMode('abs')}
+                className={`px-2.5 py-1 text-[11px] font-medium rounded transition-colors ${inputMode === 'abs' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                $ Plan
+              </button>
+            </div>
+            <span className="text-[10px] text-muted-foreground font-mono">
+              {inputMode === 'pct'
+                ? 'Base · ajusta y se aplican los multiplicadores del escenario'
+                : 'Plan absoluto anual (override por trimestre opcional)'}
+            </span>
+          </div>
         </div>
+
+        {inputMode === 'pct' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <AssumptionSlider label="Revenue growth (mensual)" value={assumptions.revenueGrowth} min={-0.05} max={0.06} step={0.001} format={v => `${(v * 100).toFixed(2)}%`}
             onChange={v => setAssumptions(a => ({ ...a, revenueGrowth: v }))} />
@@ -219,6 +285,16 @@ export default function ProjectionsView({ agency }: Props) {
           <AssumptionSlider label="Debt service growth (mensual)" value={assumptions.debtServiceGrowth} min={-0.02} max={0.03} step={0.001} format={v => `${(v * 100).toFixed(2)}%`}
             onChange={v => setAssumptions(a => ({ ...a, debtServiceGrowth: v }))} />
         </div>
+        ) : (
+          <RevenuePlanEditor
+            years={planYears}
+            plan={revenuePlan}
+            onAnnualChange={(y, v) => updatePlanYear(y, { annual: v })}
+            onQuarterChange={updatePlanQuarter}
+            assumptions={assumptions}
+            onAssumptionChange={(patch) => setAssumptions(a => ({ ...a, ...patch }))}
+          />
+        )}
       </div>
 
       {/* Charts: tabs */}

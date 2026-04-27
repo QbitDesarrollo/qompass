@@ -88,6 +88,14 @@ export default function PlanVsActual() {
               </button>
             ))}
           </div>
+          <InfoTooltip>
+            <div className="font-semibold text-foreground">Ventana de comparación</div>
+            <ul className="list-disc pl-4 text-muted-foreground space-y-1">
+              <li><b>MTD</b> (Month-to-Date): acumulado del <b>mes en curso</b> contra el plan de ese mismo mes.</li>
+              <li><b>YTD</b> (Year-to-Date): acumulado <b>de Enero al mes ancla</b> contra el plan acumulado del año a esa fecha.</li>
+            </ul>
+            <div className="text-[10px] text-muted-foreground">Útil para distinguir el desempeño puntual del mes vs la tendencia anual.</div>
+          </InfoTooltip>
           <div className="inline-flex rounded-md border border-border bg-secondary/40 p-0.5">
             {(['bear','base','bull'] as Scenario[]).map(s => (
               <button
@@ -123,6 +131,9 @@ export default function PlanVsActual() {
               <th className="text-right py-2 px-3 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">EBITDA Actual</th>
               <th className="text-right py-2 px-3 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Plan</th>
               <th className="text-right py-2 px-3 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Cumpl. EBITDA</th>
+              <th className="text-right py-2 px-3 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">OCF Actual</th>
+              <th className="text-right py-2 px-3 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Plan</th>
+              <th className="text-right py-2 px-3 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Cumpl. OCF</th>
             </tr>
           </thead>
           <tbody>
@@ -131,8 +142,10 @@ export default function PlanVsActual() {
               .map(({ agency, bucket }) => {
                 const revPct = attainmentPct(bucket.actual.revenue, bucket.plan.revenue);
                 const ebPct = attainmentPct(bucket.actual.ebitda, bucket.plan.ebitda);
+                const ocfPct = attainmentPct(bucket.actual.ocf, bucket.plan.ocf);
                 const revTone = attainmentTone(revPct);
                 const ebTone = attainmentTone(ebPct);
+                const ocfTone = attainmentTone(ocfPct);
                 return (
                   <tr key={agency.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
                     <td className="py-2 px-3 text-foreground">{agency.name}</td>
@@ -143,6 +156,9 @@ export default function PlanVsActual() {
                     <td className="py-2 px-3 text-right font-mono text-xs text-foreground">{formatCurrency(bucket.actual.ebitda)}</td>
                     <td className="py-2 px-3 text-right font-mono text-xs text-muted-foreground">{formatCurrency(bucket.plan.ebitda)}</td>
                     <td className={`py-2 px-3 text-right font-mono text-xs font-semibold ${toneClass(ebTone)}`}>{formatPercent(ebPct)}</td>
+                    <td className="py-2 px-3 text-right font-mono text-xs text-foreground">{formatCurrency(bucket.actual.ocf)}</td>
+                    <td className="py-2 px-3 text-right font-mono text-xs text-muted-foreground">{formatCurrency(bucket.plan.ocf)}</td>
+                    <td className={`py-2 px-3 text-right font-mono text-xs font-semibold ${toneClass(ocfTone)}`}>{formatPercent(ocfPct)}</td>
                   </tr>
                 );
               })}

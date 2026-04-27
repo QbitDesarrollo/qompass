@@ -273,7 +273,7 @@ function PriorityMatrix({ priorities, onSelect, selectedId, simulatedIds }: { pr
   const xSplitPct = Math.min(95, Math.max(5, (medCap / maxCap) * 100));
   const ySplitPct = Math.min(95, Math.max(5, (medEbitda / maxEbitda) * 100));
 
-  const cells: { q: PriorityQuadrant; title: string; subtitle: string; pos: string }[] = [
+  const cells: { q: PriorityQuadrant; title: string; subtitle: string; pos: 'top' | 'bottom'; side: 'left' | 'right' }[] = [
     { q: 'optimize',    title: 'Optimizar / Refinanciar', subtitle: 'Alto EBITDA · Baja capacidad',  pos: 'top' as const, side: 'left' as const },
     { q: 'deploy',      title: 'Inyectar Capital',         subtitle: 'Alto EBITDA · Alta capacidad', pos: 'top' as const, side: 'right' as const },
     { q: 'restructure', title: 'Reestructurar',            subtitle: 'Bajo EBITDA · Baja capacidad', pos: 'bottom' as const, side: 'left' as const },

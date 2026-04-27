@@ -164,36 +164,42 @@ export type Database = {
         Row: {
           category: string
           created_at: string
+          cron_expression: string | null
           description: string
           enabled: boolean
           icon: string
           id: string
           last_run_at: string | null
           name: string
+          next_run_at: string | null
           schedule: string | null
           slug: string
         }
         Insert: {
           category: string
           created_at?: string
+          cron_expression?: string | null
           description: string
           enabled?: boolean
           icon?: string
           id?: string
           last_run_at?: string | null
           name: string
+          next_run_at?: string | null
           schedule?: string | null
           slug: string
         }
         Update: {
           category?: string
           created_at?: string
+          cron_expression?: string | null
           description?: string
           enabled?: boolean
           icon?: string
           id?: string
           last_run_at?: string | null
           name?: string
+          next_run_at?: string | null
           schedule?: string | null
           slug?: string
         }
@@ -204,7 +210,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      schedule_agent: {
+        Args: { p_cron: string; p_slug: string }
+        Returns: Json
+      }
+      unschedule_agent: { Args: { p_slug: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never

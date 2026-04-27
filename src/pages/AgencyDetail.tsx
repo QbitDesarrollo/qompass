@@ -14,6 +14,7 @@ import PeriodSelector from '@/components/PeriodSelector';
 import KPIEvolutionChart from '@/components/KPIEvolutionChart';
 import MultiKPIChart from '@/components/MultiKPIChart';
 import FinancialValidationWidget from '@/components/FinancialValidationWidget';
+import ProjectionsView from '@/components/projections/ProjectionsView';
 import { Period, currentPeriod, getAgencyPeriodMetrics, getAgencyPeriodSeries, formatPeriod, splitDebtService } from '@/lib/historical-data';
 import { useSimulation } from '@/lib/simulation-store';
 import { toast } from 'sonner';
@@ -502,6 +503,13 @@ export default function AgencyDetail() {
           </div>
           <p className="text-[10px] text-muted-foreground mt-1">% de facturación proveniente de Quantum Group</p>
         </div>
+
+        {/* Proyecciones */}
+        {agency.nivel <= 3 && (
+          <div className="pt-2">
+            <ProjectionsView agency={agency} />
+          </div>
+        )}
       </div>
       </TooltipProvider>
     </AppLayout>

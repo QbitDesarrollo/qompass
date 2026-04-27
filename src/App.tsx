@@ -11,6 +11,7 @@ import DataRoom from "./pages/DataRoom";
 import Playbooks from "./pages/Playbooks";
 import Deals from "./pages/Deals";
 import DealDetail from "./pages/DealDetail";
+import Projections from "./pages/Projections";
 import NotFound from "./pages/NotFound";
 import { SimulationProvider } from "./lib/simulation-store";
 import { DealsProvider } from "./lib/deals/deals-store";
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/playbooks/:agencyId" element={<Playbooks />} />
             <Route path="/deals" element={<Deals />} />
             <Route path="/deals/:id" element={<DealDetail />} />
+            <Route path="/projections" element={<Projections />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -264,7 +264,7 @@ export default function Agents() {
                 <h2 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
                   {group.meta.label}
                 </h2>
-                {group.key === 'operativos_agencia' && (
+                {group.agents.some(g => PARAMETRIC_RUNNERS[g.slug]) && (
                   <Select value={copilotAgencyId} onValueChange={setCopilotAgencyId}>
                     <SelectTrigger className="h-7 text-xs w-56">
                       <SelectValue placeholder="Agencia" />

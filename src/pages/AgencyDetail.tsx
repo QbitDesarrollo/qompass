@@ -44,10 +44,13 @@ function InfoTip({ code }: { code: string }) {
   );
 }
 
-function IndexGauge({ label, code, value, threshold, description }: { label: string; code: string; value: number; threshold: number; description: string }) {
+function IndexGauge({ label, code, value, baseline, threshold, description, simulating }: { label: string; code: string; value: number; baseline: number; threshold: number; description: string; simulating: boolean }) {
   const pct = Math.min((value / 5) * 100, 100);
+  const basePct = Math.min((baseline / 5) * 100, 100);
   const threshPct = (threshold / 5) * 100;
   const exceeded = value > threshold;
+  const delta = value - baseline;
+  const showSim = simulating && Math.abs(delta) > 0.01;
   return (
     <div className="glass-card p-4">
       <div className="flex items-center justify-between mb-1">
@@ -55,16 +58,32 @@ function IndexGauge({ label, code, value, threshold, description }: { label: str
           {label}
           <InfoTip code={code} />
         </span>
-        <span className={`text-lg font-bold font-mono ${exceeded ? 'text-accent' : 'text-foreground'}`}>{value.toFixed(2)}</span>
+        <div className="flex items-baseline gap-2">
+          {showSim && (
+            <span className={`text-[10px] font-mono ${delta > 0 ? 'text-accent' : 'text-destructive'}`}>
+              {delta > 0 ? '+' : ''}{delta.toFixed(2)}
+            </span>
+          )}
+          <span className={`text-lg font-bold font-mono ${exceeded ? 'text-accent' : 'text-foreground'}`}>{value.toFixed(2)}</span>
+        </div>
       </div>
       <p className="text-[10px] text-muted-foreground mb-2">{description}</p>
-      <div className="relative h-2 bg-secondary rounded-full overflow-hidden">
+      <div className="relative h-2.5 bg-secondary rounded-full overflow-hidden">
+        {/* Baseline (sólido, valor sincronizado de documentos) */}
         <div
-          className={`absolute left-0 top-0 h-full rounded-full transition-all ${exceeded ? 'bg-accent' : 'bg-primary'}`}
-          style={{ width: `${pct}%` }}
+          className="absolute left-0 top-0 h-full rounded-full bg-primary/70"
+          style={{ width: `${basePct}%` }}
         />
+        {/* Simulación (difuminado/animado por encima) */}
+        {showSim && (
+          <div
+            className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-accent/40 via-accent/70 to-accent animate-pulse"
+            style={{ width: `${pct}%`, filter: 'blur(1px)', opacity: 0.85 }}
+          />
+        )}
+        {/* Línea de umbral (baseline rojo) */}
         <div
-          className="absolute top-0 w-0.5 h-full bg-destructive"
+          className="absolute top-0 w-0.5 h-full bg-destructive z-10"
           style={{ left: `${threshPct}%` }}
         />
       </div>
@@ -73,11 +92,17 @@ function IndexGauge({ label, code, value, threshold, description }: { label: str
         <span className="text-[9px] text-destructive">Umbral: {threshold}</span>
         <span className="text-[9px] text-muted-foreground">5</span>
       </div>
+      {showSim && (
+        <p className="text-[9px] text-muted-foreground mt-1 font-mono">
+          Doc: {baseline.toFixed(2)} → Sim: {value.toFixed(2)}
+        </p>
+      )}
     </div>
   );
 }
 
-function SliderInput({ label, code, value, onChange, description }: { label: string; code: string; value: number; onChange: (v: number) => void; description: string }) {
+function SliderInput({ label, code, value, baseline, onChange, description, disabled, min = 1, max = 5, step = 0.1, suffix = '' }: { label: string; code: string; value: number; baseline: number; onChange: (v: number) => void; description: string; disabled: boolean; min?: number; max?: number; step?: number; suffix?: string }) {
+  const changed = Math.abs(value - baseline) > 0.01;
   return (
     <div className="space-y-1">
       <div className="flex justify-between items-center">
@@ -85,15 +110,25 @@ function SliderInput({ label, code, value, onChange, description }: { label: str
           {label}
           <InfoTip code={code} />
         </span>
-        <span className="text-xs font-mono text-primary">{value.toFixed(1)}</span>
+        <div className="flex items-baseline gap-1.5">
+          {changed && (
+            <span className="text-[9px] font-mono text-muted-foreground line-through">
+              {baseline.toFixed(step < 1 ? 1 : 0)}{suffix}
+            </span>
+          )}
+          <span className={`text-xs font-mono ${changed ? 'text-accent' : 'text-primary'}`}>
+            {value.toFixed(step < 1 ? 1 : 0)}{suffix}
+          </span>
+        </div>
       </div>
       <Slider
         value={[value]}
         onValueChange={([v]) => onChange(v)}
-        min={1}
-        max={5}
-        step={0.1}
-        className="w-full"
+        min={min}
+        max={max}
+        step={step}
+        disabled={disabled}
+        className={`w-full ${disabled ? 'opacity-60' : ''} ${changed ? '[&_[role=slider]]:border-accent [&_.bg-primary]:bg-accent' : ''}`}
       />
       <p className="text-[9px] text-muted-foreground">{description}</p>
     </div>

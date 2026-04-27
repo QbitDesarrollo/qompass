@@ -4,6 +4,7 @@ import {
   Shield, Play, Loader2, AlertTriangle, AlertCircle, Info, CheckCircle2, Inbox, Clock,
   Sparkles, Target, Rocket, FileText, Binoculars, FileStack, X, Pin,
   Radar, LineChart, GitMerge, ClipboardCheck, Calculator, Bot, Mail,
+  CalendarClock, Trash2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { runSentinel } from '@/lib/agents/sentinel';
@@ -26,6 +27,8 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -37,6 +40,8 @@ interface AgentRow {
   category: string;
   icon: string;
   schedule: string | null;
+  cron_expression: string | null;
+  next_run_at: string | null;
   enabled: boolean;
   last_run_at: string | null;
 }

@@ -8,6 +8,7 @@ import CapitalPriorityWidget from '@/components/CapitalPriorityWidget';
 import InfoTooltip from '@/components/InfoTooltip';
 import PeriodSelector from '@/components/PeriodSelector';
 import DeltaBadge from '@/components/DeltaBadge';
+import PlanVsActual from '@/components/PlanVsActual';
 import { mockAgencies } from '@/lib/mock-data';
 import { Agency, formatCurrency, formatPercent, getAscensionOpportunity, calcDSCR, getDSCRStatus, NIVELES } from '@/lib/quantum-engine';
 import { Period, currentPeriod, getSnapshot, previousPeriod, yoyPeriod, getDualDelta, formatPeriod, getAllAgencyMetrics } from '@/lib/historical-data';
@@ -266,6 +267,9 @@ export default function Dashboard() {
           <PowerMapChart period={period} />
           <VerticalDistributionChart period={period} />
         </div>
+
+        {/* Actual vs Plan */}
+        <PlanVsActual />
 
         {/* Capital Priority — compact */}
         <CapitalPriorityWidget variant="compact" agencies={periodAgencies} />

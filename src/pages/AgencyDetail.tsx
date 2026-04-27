@@ -210,6 +210,7 @@ export default function AgencyDetail() {
     revenue: s.revenue,
     agi: s.agi,
     ebitda: s.ebitda,
+    ocf: s.operatingCashflow,
     margin: s.margin,
   })), [series, seriesLabels]);
 
@@ -329,7 +330,7 @@ export default function AgencyDetail() {
             <div>
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-primary" />
-                Evolución consolidada — Revenue · AGI · EBITDA · Margen
+                Evolución consolidada — Revenue · AGI · EBITDA · Op. Cashflow · Margen
               </h3>
               <p className="text-[10px] text-muted-foreground">
                 Últimos 8 periodos terminando en <span className="font-mono text-foreground">{formatPeriod(period)}</span> ·

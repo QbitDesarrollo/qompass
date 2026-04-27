@@ -5,6 +5,8 @@ import { NivelBadge, AscensionBadge, DSCRBadge } from '@/components/StatusBadges
 import { mockAgencies } from '@/lib/mock-data';
 import { VERTICALS, NIVELES, Vertical, NivelIntegracion, formatCurrency, formatPercent, getAscensionOpportunity, calcIPE, calcIPP, calcIPC, calcDSCR, isLevel1Eligible } from '@/lib/quantum-engine';
 import { Search, Filter, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import PeriodSelector from '@/components/PeriodSelector';
+import { Period, currentPeriod, getAllAgencyMetrics, formatPeriod } from '@/lib/historical-data';
 
 type SortKey =
   | 'name' | 'vertical' | 'nivel' | 'country'
@@ -19,6 +21,27 @@ export default function AgenciesPage() {
   const [filterNivel, setFilterNivel] = useState<NivelIntegracion | 0>(0);
   const [sortKey, setSortKey] = useState<SortKey>('ebitda');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [period, setPeriod] = useState<Period>(() => currentPeriod('month'));
+
+  // Métricas financieras agregadas por agencia para el periodo seleccionado
+  const periodMetrics = useMemo(() => getAllAgencyMetrics(period), [period]);
+
+  // Agencias "vista" = base + métricas del periodo (revenue/ebitda/ocf/ds/margin/dscr)
+  const viewAgencies = useMemo(() => {
+    return mockAgencies.map(a => {
+      const m = periodMetrics[a.id];
+      if (!m || !m.available) return a;
+      return {
+        ...a,
+        revenue: m.revenue,
+        agi: m.agi,
+        ebitda: m.ebitda,
+        operatingCashflow: m.operatingCashflow,
+        debtService: m.debtService,
+        margin: m.margin,
+      };
+    });
+  }, [periodMetrics]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -32,14 +55,14 @@ export default function AgenciesPage() {
   };
 
   const filtered = useMemo(() => {
-    const list = mockAgencies.filter(a => {
+    const list = viewAgencies.filter(a => {
       if (searchQuery && !a.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       if (filterVertical !== 'all' && a.vertical !== filterVertical) return false;
       if (filterNivel !== 0 && a.nivel !== filterNivel) return false;
       return true;
     });
 
-    const getValue = (a: typeof mockAgencies[number]): string | number => {
+    const getValue = (a: typeof viewAgencies[number]): string | number => {
       switch (sortKey) {
         case 'name': return a.name.toLowerCase();
         case 'vertical': return a.vertical.toLowerCase();
@@ -68,7 +91,7 @@ export default function AgenciesPage() {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return sorted;
-  }, [searchQuery, filterVertical, filterNivel, sortKey, sortDir]);
+  }, [viewAgencies, searchQuery, filterVertical, filterNivel, sortKey, sortDir]);
 
   const SortHeader = ({ label, k, align = 'left' }: { label: string; k: SortKey; align?: 'left' | 'right' }) => {
     const active = sortKey === k;
@@ -90,9 +113,14 @@ export default function AgenciesPage() {
   return (
     <AppLayout>
       <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Directorio de Agencias</h1>
-          <p className="text-sm text-muted-foreground">Sistema Hub-and-Spoke · {mockAgencies.length} Spokes activos</p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Directorio de Agencias</h1>
+            <p className="text-sm text-muted-foreground">
+              Sistema Hub-and-Spoke · {mockAgencies.length} Spokes activos · Periodo: <span className="font-mono text-foreground">{formatPeriod(period)}</span>
+            </p>
+          </div>
+          <PeriodSelector period={period} onPeriodChange={setPeriod} />
         </div>
 
         {/* Filters */}

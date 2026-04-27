@@ -273,12 +273,18 @@ function PriorityMatrix({ priorities, onSelect, selectedId, simulatedIds }: { pr
   return (
     <TooltipProvider delayDuration={150}>
     <div className="relative">
-      {/* Axis labels */}
+      {/* Header label */}
       <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
-        <span>← EBITDA bajo · <span className="text-foreground">EBITDA</span> · alto →</span>
-        <span className="text-muted-foreground/70">Eje X: Capacidad de deuda adicional</span>
+        <span>Matriz EBITDA × Capacidad de deuda adicional</span>
+        <span className="text-muted-foreground/70">Tamaño punto = score</span>
       </div>
-      <div className="relative aspect-[2/1] w-full rounded-lg border border-border bg-secondary/20 overflow-hidden">
+      <div className="flex gap-2">
+        {/* Y axis label (vertical) */}
+        <div className="flex items-center justify-center [writing-mode:vertical-rl] rotate-180 text-[10px] uppercase tracking-wider text-muted-foreground py-2 shrink-0">
+          <span>EBITDA bajo&nbsp;&nbsp;←&nbsp;&nbsp;<span className="text-foreground">EBITDA</span>&nbsp;&nbsp;→&nbsp;&nbsp;alto</span>
+        </div>
+        <div className="flex-1">
+          <div className="relative aspect-[2/1] w-full rounded-lg border border-border bg-secondary/20 overflow-hidden">
         {/* Quadrant tints */}
         {cells.map(c => {
           const tone = TONE_CLASSES[QUADRANT_META[c.q].tone];
@@ -330,6 +336,12 @@ function PriorityMatrix({ priorities, onSelect, selectedId, simulatedIds }: { pr
             </div>
           );
         })}
+          </div>
+          {/* X axis label */}
+          <div className="text-center text-[10px] uppercase tracking-wider text-muted-foreground mt-2">
+            Capacidad baja&nbsp;&nbsp;←&nbsp;&nbsp;<span className="text-foreground">Capacidad de deuda adicional</span>&nbsp;&nbsp;→&nbsp;&nbsp;alta
+          </div>
+        </div>
       </div>
     </div>
     </TooltipProvider>

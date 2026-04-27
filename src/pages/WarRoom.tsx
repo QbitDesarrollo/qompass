@@ -9,6 +9,9 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { Slider } from '@/components/ui/slider';
 import PeriodSelector from '@/components/PeriodSelector';
 import { Period, currentPeriod, getAllAgencyMetrics, formatPeriod } from '@/lib/historical-data';
+import { useSimulation } from '@/lib/simulation-store';
+import { Link } from 'react-router-dom';
+import { FlaskConical } from 'lucide-react';
 
 export default function WarRoom() {
   const [selectedVertical, setSelectedVertical] = useState<Vertical>('Creative & Strategy');
@@ -21,6 +24,7 @@ export default function WarRoom() {
   const [amortYears, setAmortYears] = useState(6);
   const [annualRate, setAnnualRate] = useState(10); // % anual
   const [period, setPeriod] = useState<Period>(() => currentPeriod('month'));
+  const { applyOverrides, isSimulated, simulatedIds, simulatedCount, clearAll } = useSimulation();
 
   // Vista de agencias con métricas financieras del periodo seleccionado.
   // Mantiene atributos estructurales (equity, vertical, nivel, irf) y reemplaza
@@ -29,8 +33,7 @@ export default function WarRoom() {
     const metrics = getAllAgencyMetrics(period);
     return mockAgencies.map(a => {
       const m = metrics[a.id];
-      if (!m || !m.available) return a;
-      return {
+      const periodView = (!m || !m.available) ? a : {
         ...a,
         revenue: m.revenue,
         agi: m.agi,
@@ -39,8 +42,10 @@ export default function WarRoom() {
         debtService: m.debtService,
         margin: m.margin,
       };
+      // Aplicar overrides de simulación encima de la vista del periodo
+      return applyOverrides(periodView);
     });
-  }, [period]);
+  }, [period, applyOverrides]);
 
   const currentConsolidated = useMemo(() => getConsolidatedEbitda(periodAgencies), [periodAgencies]);
 
@@ -135,6 +140,43 @@ export default function WarRoom() {
           </div>
           <PeriodSelector period={period} onPeriodChange={setPeriod} />
         </div>
+
+        {/* Simulation banner — visible cuando hay overrides activos en cualquier agencia */}
+        {simulatedCount > 0 && (
+          <div className="glass-card border-accent/40 bg-accent/5 p-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-accent/15">
+                <FlaskConical className="w-4 h-4 text-accent" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-accent">
+                  Modo Simulación activo · {simulatedCount} agencia{simulatedCount === 1 ? '' : 's'} con overrides
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Los KPIs, matriz de capital, capacidad de apalancamiento y simulaciones de escalamiento usan los valores simulados.
+                  {' '}
+                  {simulatedIds.slice(0, 4).map(sid => {
+                    const a = mockAgencies.find(x => x.id === sid);
+                    if (!a) return null;
+                    return (
+                      <Link key={sid} to={`/agencies/${sid}`} className="text-accent hover:underline mr-2 font-mono text-[10px]">
+                        {a.name}
+                      </Link>
+                    );
+                  })}
+                  {simulatedIds.length > 4 && <span className="text-muted-foreground/70">+{simulatedIds.length - 4} más</span>}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={clearAll}
+              className="text-[11px] text-muted-foreground hover:text-foreground underline px-2 py-1"
+            >
+              Limpiar todas las simulaciones
+            </button>
+          </div>
+        )}
 
         {/* Controls */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -236,6 +278,7 @@ export default function WarRoom() {
               {periodAgencies.filter(a => a.vertical === selectedVertical).map(a => {
                 const isSelected = selectedAgencyId === a.id;
                 const isTarget = simulation?.targetAgencies.some(t => t.id === a.id);
+                const simulated = isSimulated(a.id);
                 return (
                   <button
                     key={a.id}
@@ -246,9 +289,19 @@ export default function WarRoom() {
                         : isTarget
                         ? 'bg-secondary/30 ring-1 ring-accent/50 hover:bg-secondary/50'
                         : 'bg-secondary/30 hover:bg-secondary/50'
-                    }`}
+                    } ${simulated ? 'border-l-2 border-accent' : ''}`}
                   >
-                    <span className={`col-span-4 font-medium truncate ${isSelected ? 'text-primary' : 'text-foreground'}`}>{a.name}</span>
+                    <span className={`col-span-4 font-medium truncate inline-flex items-center gap-1.5 ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                      <span className="truncate">{a.name}</span>
+                      {simulated && (
+                        <span
+                          title="Esta agencia tiene una simulación activa desde su detalle"
+                          className="inline-flex items-center gap-0.5 text-[8.5px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-accent/15 text-accent border border-accent/30"
+                        >
+                          <FlaskConical className="w-2.5 h-2.5" /> SIM
+                        </span>
+                      )}
+                    </span>
                     <span className="col-span-1 text-center text-muted-foreground">N{a.nivel}</span>
                     <span className="col-span-2 text-right font-mono text-foreground">{formatCurrency(a.revenue)}</span>
                     <span className="col-span-2 text-right font-mono text-primary">{formatCurrency(a.ebitda)}</span>

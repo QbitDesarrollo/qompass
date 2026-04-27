@@ -14,6 +14,8 @@ import PeriodSelector from '@/components/PeriodSelector';
 import KPIEvolutionChart from '@/components/KPIEvolutionChart';
 import MultiKPIChart from '@/components/MultiKPIChart';
 import { Period, currentPeriod, getAgencyPeriodMetrics, getAgencyPeriodSeries, formatPeriod } from '@/lib/historical-data';
+import { useSimulation } from '@/lib/simulation-store';
+import { toast } from 'sonner';
 
 const INDEX_INFO: Record<string, string> = {
   IPE: 'Índice de Poder Estratégico. Mide la capacidad de Quantum Group para influir estratégicamente sobre la agencia. Fórmula: (DEC/100·5)·0.35 + CME·0.35 + IIO·0.15 + (6−IS)·0.15. Umbral 3.8 activa transición Fase 4→3.',
@@ -144,8 +146,10 @@ export default function AgencyDetail() {
   const { id } = useParams();
   const baseAgency = mockAgencies.find(a => a.id === id);
 
-  const [overrides, setOverrides] = useState<Partial<Agency>>({});
-  const [simulating, setSimulating] = useState(false);
+  const { overridesByAgency, setAgencyOverrides, clearAgency } = useSimulation();
+  const [simulating, setSimulating] = useState<boolean>(() =>
+    !!(id && overridesByAgency[id] && Object.keys(overridesByAgency[id]).length > 0),
+  );
   const [period, setPeriod] = useState<Period>(() => currentPeriod('month'));
   
   if (!baseAgency) {
@@ -158,6 +162,8 @@ export default function AgencyDetail() {
       </AppLayout>
     );
   }
+
+  const overrides = overridesByAgency[baseAgency.id] || {};
 
   // Métricas financieras del periodo seleccionado para esta agencia
   const periodMetrics = useMemo(
@@ -224,10 +230,27 @@ export default function AgencyDetail() {
   const eligible = isLevel1Eligible(agency);
 
   const updateField = (field: keyof Agency, value: number) => {
-    setOverrides(prev => ({ ...prev, [field]: value }));
+    setAgencyOverrides(baseAgency.id, { ...overrides, [field]: value });
   };
-  const resetSim = () => setOverrides({});
+  const resetSim = () => {
+    clearAgency(baseAgency.id);
+    toast.success(`Simulación de ${baseAgency.name} eliminada`);
+  };
   const hasChanges = Object.keys(overrides).length > 0;
+
+  const toggleSimulating = (v: boolean) => {
+    if (!v) {
+      clearAgency(baseAgency.id);
+      toast(`Simulación desactivada para ${baseAgency.name}`, {
+        description: 'Los cambios fueron descartados. War Room mostrará valores reales.',
+      });
+    } else {
+      toast.info(`Modo Simulación activado — ${baseAgency.name}`, {
+        description: 'Los cambios se reflejarán automáticamente en War Room.',
+      });
+    }
+    setSimulating(v);
+  };
 
   return (
     <AppLayout>
@@ -283,7 +306,7 @@ export default function AgencyDetail() {
               </span>
               <Switch
                 checked={simulating}
-                onCheckedChange={(v) => { if (!v) resetSim(); setSimulating(v); }}
+                onCheckedChange={toggleSimulating}
                 className="data-[state=checked]:bg-accent scale-125"
               />
               <span className="text-xs font-semibold text-foreground hidden sm:inline">Simulación</span>

@@ -462,17 +462,48 @@ function PriorityList({ priorities, limit, onSelect, selectedId, simulatedIds }:
             </div>
             <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </AgencyAction>
-            {elig.eligible && (
-              <Link
-                to={`/playbooks/${p.agency.id}`}
-                onClick={(e) => e.stopPropagation()}
-                className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                title="Esta agencia cumple score, cuadrante deploy, oportunidad de ascenso y DSCR ≥ 2.0x"
-              >
-                <BookOpen className="w-3 h-3" />
-                Ejecutar Playbook
-              </Link>
-            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {elig.eligible ? (
+                    <Link
+                      to={`/playbooks/${p.agency.id}`}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      <BookOpen className="w-3 h-3" />
+                      Ejecutar Playbook
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      aria-disabled="true"
+                      className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-md bg-secondary/60 text-muted-foreground border border-border cursor-not-allowed opacity-70"
+                    >
+                      <BookOpen className="w-3 h-3" />
+                      Ejecutar Playbook
+                    </button>
+                  )}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="left" align="center" className="max-w-xs p-3 space-y-2 text-xs">
+                <div className="font-semibold text-foreground">Criterios para Ejecutar Playbook</div>
+                <div className="text-[10px] text-muted-foreground">
+                  En el Ranking accionable del War Room, cuando una agencia cumple los 4 criterios aparece el badge <span className="text-primary font-semibold">Playbook ready</span> y se habilita el botón <span className="text-primary font-semibold">Ejecutar Playbook</span>.
+                </div>
+                <ul className="space-y-1">
+                  <CriterionRow ok={elig.score} label="Score ≥ 70" />
+                  <CriterionRow ok={elig.quadrant} label='Cuadrante "Inyectar Capital"' />
+                  <CriterionRow ok={elig.ascension} label="Oportunidad de ascenso activa" />
+                  <CriterionRow ok={elig.dscr} label="DSCR ≥ 2.0x (cobertura total)" />
+                </ul>
+                {!elig.eligible && (
+                  <div className="pt-1 border-t border-border/40 text-[10px] text-muted-foreground">
+                    Falta: {elig.reasons.join(' · ')}
+                  </div>
+                )}
+              </TooltipContent>
+            </Tooltip>
           </div>
         );
       })}

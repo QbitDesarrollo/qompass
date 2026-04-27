@@ -427,6 +427,134 @@ function AssumptionSlider({ label, value, min, max, step, format, onChange, unit
   );
 }
 
+/* ---- Editor de plan absoluto de Revenue (anual + override por Q) ---- */
+function RevenuePlanEditor({
+  years, plan, onAnnualChange, onQuarterChange, assumptions, onAssumptionChange,
+}: {
+  years: number[];
+  plan: RevenuePlan;
+  onAnnualChange: (year: number, value: number) => void;
+  onQuarterChange: (year: number, q: 1 | 2 | 3 | 4, value: number | null) => void;
+  assumptions: Assumptions;
+  onAssumptionChange: (patch: Partial<Assumptions>) => void;
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="space-y-4">
+        {years.map(year => {
+          const py = plan.find(p => p.year === year);
+          const annual = py?.annual ?? 0;
+          const overSum = ([1, 2, 3, 4] as const).reduce((s, q) => s + (py?.quarters?.[q] ?? 0), 0);
+          const remaining = annual - overSum;
+          const overflow = overSum > annual && annual > 0;
+          return (
+            <div key={year} className="rounded-md border border-border bg-secondary/20 p-3 space-y-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-foreground font-mono">{year}</span>
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Revenue Plan Anual</span>
+                </div>
+                <CurrencyInput
+                  value={annual}
+                  onCommit={v => onAnnualChange(year, v)}
+                  className="w-44"
+                />
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {([1, 2, 3, 4] as const).map(q => {
+                  const qVal = py?.quarters?.[q];
+                  const placeholder = annual > 0
+                    ? Math.round((annual / 4)).toLocaleString('en-US')
+                    : '—';
+                  return (
+                    <div key={q} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-muted-foreground font-mono">Q{q}</span>
+                        {qVal !== undefined && (
+                          <button
+                            type="button"
+                            onClick={() => onQuarterChange(year, q, null)}
+                            className="text-[9px] text-muted-foreground hover:text-destructive transition-colors"
+                          >
+                            limpiar
+                          </button>
+                        )}
+                      </div>
+                      <CurrencyInput
+                        value={qVal ?? null}
+                        placeholder={`auto · ${placeholder}`}
+                        onCommit={v => onQuarterChange(year, q, v > 0 ? v : null)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className={`text-[10px] font-mono ${overflow ? 'text-destructive' : 'text-muted-foreground'}`}>
+                {overflow
+                  ? `⚠ Suma de Q (${overSum.toLocaleString('en-US')}) supera el anual (${annual.toLocaleString('en-US')})`
+                  : overSum > 0
+                    ? `Override Q: $${overSum.toLocaleString('en-US')} · Auto-distribuido: $${remaining.toLocaleString('en-US')}`
+                    : 'Sin overrides — distribuido mensualmente con estacionalidad'}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="border-t border-border pt-4">
+        <p className="text-[10px] text-muted-foreground mb-3 uppercase tracking-wider">
+          Márgenes derivados (aplicados sobre el revenue del plan)
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <AssumptionSlider label="AGI margin" value={assumptions.agiMargin} min={0.15} max={0.9} step={0.01} format={v => `${(v * 100).toFixed(0)}%`}
+            onChange={v => onAssumptionChange({ agiMargin: v })} />
+          <AssumptionSlider label="EBITDA margin" value={assumptions.ebitdaMargin} min={0.02} max={0.5} step={0.005} format={v => `${(v * 100).toFixed(1)}%`}
+            onChange={v => onAssumptionChange({ ebitdaMargin: v })} />
+          <AssumptionSlider label="OCF / EBITDA" value={assumptions.ocfConversion} min={0.3} max={1.4} step={0.01} format={v => `${(v * 100).toFixed(0)}%`}
+            onChange={v => onAssumptionChange({ ocfConversion: v })} />
+          <AssumptionSlider label="Debt service growth (mensual)" value={assumptions.debtServiceGrowth} min={-0.02} max={0.03} step={0.001} format={v => `${(v * 100).toFixed(2)}%`}
+            onChange={v => onAssumptionChange({ debtServiceGrowth: v })} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CurrencyInput({
+  value, onCommit, placeholder, className = '',
+}: { value: number | null; onCommit: (v: number) => void; placeholder?: string; className?: string }) {
+  const display = value === null || value === 0 ? '' : String(value);
+  const [text, setText] = useState<string>(display);
+  useEffect(() => { setText(value === null || value === 0 ? '' : String(value)); }, [value]);
+  const commit = (raw: string) => {
+    const cleaned = raw.replace(/[^0-9.-]/g, '');
+    const num = parseFloat(cleaned);
+    if (!isFinite(num) || num < 0) {
+      onCommit(0);
+      setText('');
+      return;
+    }
+    const rounded = Math.round(num);
+    onCommit(rounded);
+    setText(String(rounded));
+  };
+  return (
+    <div className={`relative ${className}`}>
+      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground font-mono pointer-events-none">$</span>
+      <Input
+        type="text"
+        inputMode="numeric"
+        value={text}
+        placeholder={placeholder}
+        onChange={e => setText(e.target.value)}
+        onBlur={e => commit(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        className="h-7 pl-5 pr-2 text-xs font-mono text-right"
+      />
+    </div>
+  );
+}
+
 function RoadmapPanel({ plan, agency }: { plan: TransitionPlan; agency: Agency }) {
   const okGates = plan.gates.filter(g => g.status === 'ok').length;
   return (

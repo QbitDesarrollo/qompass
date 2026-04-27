@@ -201,26 +201,69 @@ export default function WarRoom() {
               Resultados de Simulación — {selectedVertical} {simulateTransition}
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="glass-card p-4 border-border">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Nuevo Equity</span>
-                <p className="text-2xl font-bold font-mono text-accent mt-1">{simulation.newEquity}%</p>
-                <p className="text-[10px] text-muted-foreground">Aplicado a {simulation.targetAgencies.length} agencia(s)</p>
+            {/* Equity editor */}
+            <div className="glass-card p-5 border-accent/30">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-accent" />
+                  <h3 className="text-sm font-semibold text-foreground">Nuevo Equity a Adquirir</h3>
+                </div>
+                <button
+                  onClick={() => setCustomEquity(null)}
+                  className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                >
+                  Restablecer ({simulation.defaultEquity}%)
+                </button>
               </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Equity Actual Promedio</p>
+                  <p className="text-xl font-mono text-muted-foreground mt-1">{simulation.avgCurrentEquity.toFixed(1)}%</p>
+                </div>
+                <div className="md:col-span-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-muted-foreground">Nuevo Equity Objetivo</span>
+                    <span className="text-2xl font-bold font-mono text-accent">{simulation.newEquity}%</span>
+                  </div>
+                  <Slider
+                    value={[simulation.newEquity]}
+                    onValueChange={([v]) => setCustomEquity(v)}
+                    min={Math.ceil(simulation.avgCurrentEquity)}
+                    max={100}
+                    step={1}
+                  />
+                  <div className="flex justify-between text-[9px] text-muted-foreground mt-1">
+                    <span>{Math.ceil(simulation.avgCurrentEquity)}%</span><span>100%</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Equity Adquirido</p>
+                  <p className="text-xl font-mono text-accent mt-1">+{simulation.equityAcquired.toFixed(1)}%</p>
+                  <p className="text-[10px] text-muted-foreground">en {simulation.targetAgencies.length} agencia(s)</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="glass-card p-4 border-primary/30">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">EBITDA Incremental</span>
                 <p className="text-2xl font-bold font-mono text-primary mt-1">+{formatCurrency(simulation.incrementalEbitda)}</p>
                 <p className="text-[10px] text-muted-foreground">Adicional bajo control</p>
               </div>
-              <div className="glass-card p-4 border-primary/30 glow-emerald">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">EBITDA Consolidado Proy.</span>
-                <p className="text-2xl font-bold font-mono text-primary mt-1">{formatCurrency(simulation.projectedConsolidated)}</p>
-                <p className="text-[10px] text-muted-foreground">vs. actual {formatCurrency(currentConsolidated)}</p>
+              <div className="glass-card p-4 border-destructive/30">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Costo de Adquisición</span>
+                <p className="text-2xl font-bold font-mono text-destructive mt-1">{formatCurrency(simulation.acquisitionCost)}</p>
+                <p className="text-[10px] text-muted-foreground">{standaloneMultiple}x EBITDA standalone</p>
               </div>
               <div className="glass-card p-4 border-accent/30 glow-gold">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Ganancia de Valor ({exitMultiple}x)</span>
-                <p className="text-2xl font-bold font-mono text-accent mt-1">+{formatCurrency(simulation.valueGain)}</p>
-                <p className="text-[10px] text-muted-foreground">Exit Value: {formatCurrency(simulation.projectedValuation)}</p>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Arbitraje de Múltiplo</span>
+                <p className="text-2xl font-bold font-mono text-accent mt-1">+{formatCurrency(simulation.arbitrage)}</p>
+                <p className="text-[10px] text-muted-foreground">({exitMultiple}x − {standaloneMultiple}x) × ΔEBITDA</p>
+              </div>
+              <div className="glass-card p-4 border-primary/30 glow-emerald">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Nueva Valorización Grupo</span>
+                <p className="text-2xl font-bold font-mono text-primary mt-1">{formatCurrency(simulation.projectedValuation)}</p>
+                <p className="text-[10px] text-muted-foreground">vs. {formatCurrency(simulation.currentValuation)} (+{formatCurrency(simulation.valueGain)})</p>
               </div>
             </div>
 

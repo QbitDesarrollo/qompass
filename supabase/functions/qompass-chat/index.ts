@@ -81,9 +81,6 @@ serve(async (req) => {
           ...safeMessages,
         ],
         stream: true,
-        reasoning: {
-          effort: "minimal",
-        },
       }),
     });
 

@@ -210,7 +210,18 @@ export default function Dashboard() {
         <div className="glass-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-sm font-semibold text-foreground">Top Agencias por Contribución</h3>
+              <div className="flex items-center gap-1.5">
+                <h3 className="text-sm font-semibold text-foreground">Top Agencias por Contribución</h3>
+                <InfoTooltip>
+                  <div className="font-semibold text-foreground">Ranking por EBITDA Consolidado</div>
+                  <div className="text-muted-foreground">Las 6 agencias que más aportan al EBITDA del grupo, ponderado por % de equity.</div>
+                  <div className="font-mono text-[10px] text-foreground">Contribución = EBITDA × equity / 100</div>
+                  <ul className="list-disc pl-4 text-[10px] text-muted-foreground">
+                    <li><b>DSCR</b>: capacidad para cubrir deuda</li>
+                    <li><b>Ascenso</b>: oportunidad de subir de nivel (IPE/IPP/IPC sobre umbral)</li>
+                  </ul>
+                </InfoTooltip>
+              </div>
               <p className="text-xs text-muted-foreground">Ranked por EBITDA consolidado</p>
             </div>
             <Link to="/agencies" className="text-xs text-primary hover:underline">Ver todas →</Link>

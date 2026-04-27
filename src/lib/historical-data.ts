@@ -446,7 +446,8 @@ export function getAgencyPeriodSeries(agencyId: string, endPeriod: Period, count
 
 export const FIN_ASSUMPTIONS = {
   interestRate: 0.09,
-  minPrincipalShare: 0.35,
+  /** Plazo asumido para el préstamo amortizable (sistema francés) */
+  loanTermYears: 7,
   daRate: 0.03,
   taxRate: 0.25,
 };
@@ -455,10 +456,14 @@ export interface DebtServiceBreakdown {
   total: number;
   interest: number;
   principal: number;
-  /** Deuda implícita estimada = intereses / tasa */
+  /** Deuda implícita despejada de la cuota francesa */
   impliedDebt: number;
   interestShare: number;   // 0..1
   principalShare: number;  // 0..1
+  /** Plazo asumido en años */
+  termYears: number;
+  /** Tasa anual asumida */
+  rate: number;
 }
 
 export interface FinancialCascade {
@@ -480,32 +485,52 @@ export interface FinancialCascade {
   dscr: number;
 }
 
-/** Estimación del componente de intereses dentro de un Debt Service total. */
+/**
+ * Split de Debt Service usando sistema francés (cuota constante).
+ *
+ * Dado:
+ *   Cuota anual = DS
+ *   Tasa anual  = i  (FIN_ASSUMPTIONS.interestRate)
+ *   Plazo       = n  (FIN_ASSUMPTIONS.loanTermYears)
+ *
+ * Se despeja la deuda original:
+ *   Deuda = Cuota × (1 − (1+i)^−n) / i
+ *
+ * Y el split del año 1 (representativo, máximo de intereses):
+ *   Interés_año1  = Deuda × i
+ *   Capital_año1  = Cuota − Interés_año1
+ *
+ * El segundo argumento (ebitdaAnnual) se mantiene por compatibilidad
+ * con la firma anterior pero ya no influye en el cálculo.
+ */
 export function splitDebtService(
   debtServiceAnnual: number,
-  ebitdaAnnual: number,
+  _ebitdaAnnual?: number,
 ): DebtServiceBreakdown {
+  const i = FIN_ASSUMPTIONS.interestRate;
+  const n = FIN_ASSUMPTIONS.loanTermYears;
   if (debtServiceAnnual <= 0) {
-    return { total: 0, interest: 0, principal: 0, impliedDebt: 0, interestShare: 0, principalShare: 0 };
+    return {
+      total: 0, interest: 0, principal: 0, impliedDebt: 0,
+      interestShare: 0, principalShare: 0,
+      termYears: n, rate: i,
+    };
   }
-  // Heurística: agencias con poco EBITDA suelen tener una mayor proporción
-  // de intereses (deuda más cara o más larga). Limitamos intereses al
-  // (1 − minPrincipalShare) del DS para mantener un mix realista.
-  const maxInterestShare = 1 - FIN_ASSUMPTIONS.minPrincipalShare; // 0.65
-  // Punto de partida: asumimos que ~55% del DS son intereses si EBITDA
-  // es bajo (DS/EBITDA > 0.5), y ~40% si la cobertura es muy holgada.
-  const cover = ebitdaAnnual > 0 ? debtServiceAnnual / ebitdaAnnual : 1;
-  const baseInterestShare = Math.min(maxInterestShare, 0.40 + Math.min(0.25, cover * 0.30));
-  const interest = debtServiceAnnual * baseInterestShare;
+  // Factor de anualidad francesa: a(n,i) = (1 − (1+i)^−n) / i
+  const annuityFactor = (1 - Math.pow(1 + i, -n)) / i;
+  const impliedDebt = debtServiceAnnual * annuityFactor;
+  // Año 1 (máximo interés, mínimo capital — escenario conservador)
+  const interest = impliedDebt * i;
   const principal = debtServiceAnnual - interest;
-  const impliedDebt = interest / FIN_ASSUMPTIONS.interestRate;
   return {
     total: debtServiceAnnual,
     interest,
     principal,
     impliedDebt,
-    interestShare: baseInterestShare,
-    principalShare: 1 - baseInterestShare,
+    interestShare: interest / debtServiceAnnual,
+    principalShare: principal / debtServiceAnnual,
+    termYears: n,
+    rate: i,
   };
 }
 

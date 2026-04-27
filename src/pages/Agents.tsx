@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import {
   Shield, Play, Loader2, AlertTriangle, AlertCircle, Info, CheckCircle2, Inbox, Clock,
   Sparkles, Target, Rocket, FileText, Binoculars, FileStack, X, Pin,
+  Radar, LineChart, GitMerge, ClipboardCheck, Calculator, Bot, Mail,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { runSentinel } from '@/lib/agents/sentinel';
@@ -10,12 +11,21 @@ import { runCapitalAllocator } from '@/lib/agents/capital-allocator';
 import { runAscensionCoach } from '@/lib/agents/ascension-coach';
 import { runBoardReporter } from '@/lib/agents/board-reporter';
 import { runDealScout } from '@/lib/agents/deal-scout';
+import { runRiskRadar } from '@/lib/agents/risk-radar';
+import { runForecaster } from '@/lib/agents/forecaster';
+import { runSynergyHunter } from '@/lib/agents/synergy-hunter';
+import { runDDCoordinator } from '@/lib/agents/dd-coordinator';
+import { runValuationAgent } from '@/lib/agents/valuation-agent';
+import { runAgencyCopilot } from '@/lib/agents/agency-copilot';
+import { runStakeholderComms } from '@/lib/agents/stakeholder-comms';
+import { mockAgencies } from '@/lib/mock-data';
 import { toast } from '@/hooks/use-toast';
 import AppLayout from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -66,14 +76,42 @@ const ICON_BY_SLUG: Record<string, React.ComponentType<{ className?: string }>> 
   'ascension-coach': Rocket,
   'board-reporter': FileText,
   'deal-scout': Binoculars,
+  'risk-radar': Radar,
+  forecaster: LineChart,
+  'synergy-hunter': GitMerge,
+  'dd-coordinator': ClipboardCheck,
+  'valuation-agent': Calculator,
+  'agency-copilot': Bot,
+  'stakeholder-comms': Mail,
 };
 
-const RUNNERS: Record<string, () => Promise<{ alertsCreated: number; durationMs: number; outputId?: string }>> = {
+type RunnerResult = { alertsCreated: number; durationMs: number; outputId?: string };
+const RUNNERS: Record<string, () => Promise<RunnerResult>> = {
   sentinel: runSentinel,
   'capital-allocator': runCapitalAllocator,
   'ascension-coach': runAscensionCoach,
   'board-reporter': runBoardReporter,
   'deal-scout': runDealScout,
+  'risk-radar': runRiskRadar,
+  forecaster: runForecaster,
+  'synergy-hunter': runSynergyHunter,
+  'dd-coordinator': runDDCoordinator,
+  'valuation-agent': runValuationAgent,
+  'stakeholder-comms': runStakeholderComms,
+};
+
+// Agentes que requieren parámetro (manejados aparte)
+const PARAMETRIC_RUNNERS: Record<string, (param: string) => Promise<RunnerResult>> = {
+  'agency-copilot': runAgencyCopilot,
+};
+
+const CATEGORY_META: Record<string, { label: string; order: number }> = {
+  vigilancia_diagnostico:  { label: '1. Vigilancia & Diagnóstico',     order: 1 },
+  crecimiento_capital:     { label: '2. Crecimiento & Capital',         order: 2 },
+  mna:                     { label: '3. M&A',                           order: 3 },
+  operativos_agencia:      { label: '4. Operativos por Agencia',        order: 4 },
+  forecasting_simulacion:  { label: '5. Forecasting & Simulación',      order: 5 },
+  comunicacion_governance: { label: '6. Comunicación & Governance',     order: 6 },
 };
 
 export default function Agents() {
@@ -84,6 +122,7 @@ export default function Agents() {
   const [running, setRunning] = useState<string | null>(null);
   const [filter, setFilter] = useState<'open' | 'all'>('open');
   const [tab, setTab] = useState<'alerts' | 'outputs'>('alerts');
+  const [copilotAgencyId, setCopilotAgencyId] = useState<string>(mockAgencies[0]?.id || '');
 
   async function load() {
     const [agentsRes, alertsRes, outputsRes] = await Promise.all([
@@ -100,13 +139,14 @@ export default function Agents() {
 
   async function handleRun(agent: AgentRow) {
     const runner = RUNNERS[agent.slug];
-    if (!runner) {
+    const paramRunner = PARAMETRIC_RUNNERS[agent.slug];
+    if (!runner && !paramRunner) {
       toast({ title: 'Próximamente', description: `${agent.name} aún no está implementado.` });
       return;
     }
     setRunning(agent.id);
     try {
-      const res = await runner();
+      const res = paramRunner ? await paramRunner(copilotAgencyId) : await runner!();
       toast({
         title: `${agent.name} ejecutado`,
         description: res.alertsCreated > 0
@@ -156,6 +196,16 @@ export default function Agents() {
   const criticalCount = alerts.filter(a => a.status === 'open' && a.severity === 'critical').length;
   const warningCount = alerts.filter(a => a.status === 'open' && a.severity === 'warning').length;
 
+  // Agrupar agentes por categoría
+  const grouped = Object.keys(CATEGORY_META)
+    .map(catKey => ({
+      key: catKey,
+      meta: CATEGORY_META[catKey],
+      agents: agents.filter(a => a.category === catKey),
+    }))
+    .filter(g => g.agents.length > 0)
+    .sort((a, b) => a.meta.order - b.meta.order);
+
   return (
     <AppLayout>
       <div className="p-6 space-y-6">
@@ -181,18 +231,42 @@ export default function Agents() {
         </div>
 
         {/* Catálogo de agentes */}
-        <div>
-          <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">Catálogo</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {agents.map(a => (
-              <AgentCard
-                key={a.id}
-                agent={a}
-                running={running === a.id}
-                onRun={() => handleRun(a)}
-              />
-            ))}
-          </div>
+        <div className="space-y-5">
+          {grouped.map(group => (
+            <div key={group.key}>
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <h2 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                  {group.meta.label}
+                </h2>
+                {group.key === 'operativos_agencia' && (
+                  <Select value={copilotAgencyId} onValueChange={setCopilotAgencyId}>
+                    <SelectTrigger className="h-7 text-xs w-56">
+                      <SelectValue placeholder="Agencia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {mockAgencies.map(a => (
+                        <SelectItem key={a.id} value={a.id} className="text-xs">
+                          {a.name} <span className="text-muted-foreground ml-1">· N{a.nivel}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {group.agents.map(a => (
+                  <AgentCard
+                    key={a.id}
+                    agent={a}
+                    running={running === a.id}
+                    onRun={() => handleRun(a)}
+                    parametric={!!PARAMETRIC_RUNNERS[a.slug]}
+                    paramLabel={PARAMETRIC_RUNNERS[a.slug] ? mockAgencies.find(x => x.id === copilotAgencyId)?.name : undefined}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Tabs Alertas / Outputs */}
@@ -334,7 +408,10 @@ export default function Agents() {
   );
 }
 
-function AgentCard({ agent, running, onRun }: { agent: AgentRow; running: boolean; onRun: () => void }) {
+function AgentCard({ agent, running, onRun, parametric, paramLabel }: {
+  agent: AgentRow; running: boolean; onRun: () => void;
+  parametric?: boolean; paramLabel?: string;
+}) {
   const Icon = ICON_BY_SLUG[agent.slug] || Sparkles;
   return (
     <Card className="p-4 border-border hover:border-primary/40 transition-colors">
@@ -344,7 +421,11 @@ function AgentCard({ agent, running, onRun }: { agent: AgentRow; running: boolea
         </div>
         <div>
           <div className="text-sm font-semibold text-foreground">{agent.name}</div>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{agent.category}</div>
+          {parametric && paramLabel ? (
+            <div className="text-[10px] uppercase tracking-wider text-primary/80">→ {paramLabel}</div>
+          ) : (
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{agent.category.replace(/_/g, ' ')}</div>
+          )}
         </div>
       </div>
       <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{agent.description}</p>

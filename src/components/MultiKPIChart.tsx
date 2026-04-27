@@ -6,6 +6,7 @@ export interface MultiKPIPoint {
   revenue: number;
   agi: number;
   ebitda: number;
+  ocf: number;
   margin: number; // %
 }
 
@@ -20,6 +21,7 @@ const COLORS = {
   revenue: 'hsl(var(--muted-foreground))',
   agi: 'hsl(var(--primary))',
   ebitda: 'hsl(var(--accent))',
+  ocf: 'hsl(190 85% 55%)', // cyan para distinguir cashflow
   margin: 'hsl(48 95% 55%)', // amarillo cálido para destacar
 };
 
@@ -57,6 +59,10 @@ export default function MultiKPIChart({ data, formatCurrency, formatPercent, hei
             <linearGradient id="ebitdaGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={COLORS.ebitda} stopOpacity={0.40} />
               <stop offset="100%" stopColor={COLORS.ebitda} stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="ocfGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={COLORS.ocf} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={COLORS.ocf} stopOpacity={0} />
             </linearGradient>
           </defs>
 
@@ -139,6 +145,17 @@ export default function MultiKPIChart({ data, formatCurrency, formatPercent, hei
             stroke={COLORS.ebitda}
             strokeWidth={2}
             fill="url(#ebitdaGrad)"
+            dot={false}
+            activeDot={{ r: 3 }}
+          />
+          <Area
+            yAxisId="amount"
+            type="monotone"
+            dataKey="ocf"
+            name="Op. Cashflow"
+            stroke={COLORS.ocf}
+            strokeWidth={1.75}
+            fill="url(#ocfGrad)"
             dot={false}
             activeDot={{ r: 3 }}
           />

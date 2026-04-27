@@ -71,6 +71,57 @@ export type Database = {
           },
         ]
       }
+      agent_outputs: {
+        Row: {
+          agent_id: string
+          content_md: string
+          created_at: string
+          data: Json | null
+          id: string
+          kind: string
+          pinned: boolean
+          run_id: string | null
+          title: string
+        }
+        Insert: {
+          agent_id: string
+          content_md: string
+          created_at?: string
+          data?: Json | null
+          id?: string
+          kind: string
+          pinned?: boolean
+          run_id?: string | null
+          title: string
+        }
+        Update: {
+          agent_id?: string
+          content_md?: string
+          created_at?: string
+          data?: Json | null
+          id?: string
+          kind?: string
+          pinned?: boolean
+          run_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_outputs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_outputs_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "agent_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_runs: {
         Row: {
           agent_id: string

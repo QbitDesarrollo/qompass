@@ -9,6 +9,9 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { Slider } from '@/components/ui/slider';
 import PeriodSelector from '@/components/PeriodSelector';
 import { Period, currentPeriod, getAllAgencyMetrics, formatPeriod } from '@/lib/historical-data';
+import { useSimulation } from '@/lib/simulation-store';
+import { Link } from 'react-router-dom';
+import { FlaskConical } from 'lucide-react';
 
 export default function WarRoom() {
   const [selectedVertical, setSelectedVertical] = useState<Vertical>('Creative & Strategy');
@@ -21,6 +24,7 @@ export default function WarRoom() {
   const [amortYears, setAmortYears] = useState(6);
   const [annualRate, setAnnualRate] = useState(10); // % anual
   const [period, setPeriod] = useState<Period>(() => currentPeriod('month'));
+  const { applyOverrides, isSimulated, simulatedIds, simulatedCount, clearAll } = useSimulation();
 
   // Vista de agencias con métricas financieras del periodo seleccionado.
   // Mantiene atributos estructurales (equity, vertical, nivel, irf) y reemplaza
@@ -29,8 +33,7 @@ export default function WarRoom() {
     const metrics = getAllAgencyMetrics(period);
     return mockAgencies.map(a => {
       const m = metrics[a.id];
-      if (!m || !m.available) return a;
-      return {
+      const periodView = (!m || !m.available) ? a : {
         ...a,
         revenue: m.revenue,
         agi: m.agi,
@@ -39,8 +42,10 @@ export default function WarRoom() {
         debtService: m.debtService,
         margin: m.margin,
       };
+      // Aplicar overrides de simulación encima de la vista del periodo
+      return applyOverrides(periodView);
     });
-  }, [period]);
+  }, [period, applyOverrides]);
 
   const currentConsolidated = useMemo(() => getConsolidatedEbitda(periodAgencies), [periodAgencies]);
 

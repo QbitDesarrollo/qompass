@@ -169,3 +169,87 @@ export const NIVEL_LABELS: Record<NivelIntegracion, string> = {
   3: 'Partner Estratégico',
   4: 'Operador Certificado',
 };
+
+// ============================================================
+// Capital Priority Engine
+// Cruza rentabilidad (EBITDA) con capacidad de apalancamiento
+// adicional + momentum estratégico (ascenso) para sugerir
+// dónde desplegar capital primero.
+// ============================================================
+
+export type PriorityQuadrant =
+  | 'deploy'         // Alto EBITDA + Alta capacidad → INYECTAR CAPITAL
+  | 'optimize'       // Alto EBITDA + Baja capacidad → REFINANCIAR / OPTIMIZAR CASHFLOW
+  | 'investigate'    // Bajo EBITDA + Alta capacidad → CAPACIDAD OCIOSA, INVESTIGAR
+  | 'restructure';   // Bajo EBITDA + Baja capacidad → REESTRUCTURAR / DESINVERTIR
+
+export interface CapitalPriority {
+  agency: Agency;
+  score: number;              // 0-100
+  ebitdaScore: number;        // 0-100 (relativo al máximo del set)
+  capacityScore: number;      // 0-100 (relativo al máximo del set)
+  ascensionScore: number;     // 0 o 100
+  additionalDebt: number;
+  ebitda: number;
+  quadrant: PriorityQuadrant;
+  action: { label: string; tone: 'primary' | 'accent' | 'warning' | 'danger' };
+  rationale: string;
+}
+
+export const QUADRANT_META: Record<PriorityQuadrant, { label: string; tone: 'primary' | 'accent' | 'warning' | 'danger'; short: string }> = {
+  deploy:       { label: 'Inyectar Capital',      tone: 'primary', short: 'Deploy' },
+  optimize:     { label: 'Optimizar / Refinanciar', tone: 'accent',  short: 'Optimize' },
+  investigate:  { label: 'Capacidad Ociosa',      tone: 'warning', short: 'Investigate' },
+  restructure:  { label: 'Reestructurar',         tone: 'danger',  short: 'Restructure' },
+};
+
+export function computeCapitalPriorities(
+  agencies: Agency[],
+  opts: { targetDSCR?: number; amortYears?: number; annualRate?: number } = {},
+): CapitalPriority[] {
+  const { targetDSCR = 1.5, amortYears = 6, annualRate = 0.10 } = opts;
+  const enriched = agencies.map(a => {
+    const lev = calcLeverageCapacity(a, targetDSCR, amortYears, annualRate);
+    return { agency: a, additionalDebt: lev.additionalDebt, ebitda: a.ebitda };
+  });
+
+  const maxEbitda = Math.max(1, ...enriched.map(e => Math.max(0, e.ebitda)));
+  const maxCapacity = Math.max(1, ...enriched.map(e => e.additionalDebt));
+  // Medianas para definir "alto/bajo" en cuadrantes
+  const sortedEbitda = [...enriched.map(e => e.ebitda)].sort((a, b) => a - b);
+  const sortedCap = [...enriched.map(e => e.additionalDebt)].sort((a, b) => a - b);
+  const medEbitda = sortedEbitda[Math.floor(sortedEbitda.length / 2)] ?? 0;
+  const medCap = sortedCap[Math.floor(sortedCap.length / 2)] ?? 0;
+
+  return enriched
+    .map(({ agency, additionalDebt, ebitda }) => {
+      const ebitdaScore = Math.max(0, ebitda) / maxEbitda * 100;
+      const capacityScore = additionalDebt / maxCapacity * 100;
+      const ascensionScore = getAscensionOpportunity(agency) ? 100 : 0;
+      // Ponderación: 60% EBITDA + 30% capacidad + 10% ascenso
+      const score = ebitdaScore * 0.6 + capacityScore * 0.3 + ascensionScore * 0.1;
+
+      const highEbitda = ebitda >= medEbitda;
+      const highCap = additionalDebt >= medCap;
+      let quadrant: PriorityQuadrant;
+      if (highEbitda && highCap) quadrant = 'deploy';
+      else if (highEbitda && !highCap) quadrant = 'optimize';
+      else if (!highEbitda && highCap) quadrant = 'investigate';
+      else quadrant = 'restructure';
+
+      const meta = QUADRANT_META[quadrant];
+      const rationale =
+        quadrant === 'deploy'      ? 'EBITDA sólido y headroom de deuda disponible. Mejor dólar marginal.' :
+        quadrant === 'optimize'    ? 'Genera caja pero sin margen de deuda. Refinanciar o liberar cashflow.' :
+        quadrant === 'investigate' ? 'Tiene capacidad sin usar pero bajo retorno. Revisar tesis o pricing.' :
+                                     'Bajo retorno y sin capacidad. Reestructurar, fusionar o desinvertir.';
+
+      return {
+        agency, score, ebitdaScore, capacityScore, ascensionScore,
+        additionalDebt, ebitda, quadrant,
+        action: { label: meta.label, tone: meta.tone },
+        rationale,
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+}

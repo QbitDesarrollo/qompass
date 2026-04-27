@@ -36,6 +36,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -140,6 +141,27 @@ const CATEGORY_META: Record<string, { label: string; order: number }> = {
   comunicacion_governance: { label: '6. Comunicación & Governance',     order: 6 },
 };
 
+/** Schedule recomendado por defecto. NO se aplica solo — requiere confirmación. */
+const RECOMMENDED_SCHEDULE: Array<{ slug: string; cron: string; cadence: string; rationale: string }> = [
+  { slug: 'sentinel',                cron: '0 8 * * *',  cadence: 'Diario 08:00 UTC', rationale: 'Vigilancia continua de plan vs actual y DSCR.' },
+  { slug: 'dscr-watchdog',           cron: '0 8 * * *',  cadence: 'Diario 08:00 UTC', rationale: 'Detección temprana de stress de leverage.' },
+  { slug: 'risk-radar',              cron: '0 9 * * 1',  cadence: 'Lunes 09:00 UTC',  rationale: 'Mapa semanal de riesgos del portafolio.' },
+  { slug: 'index-tracker',           cron: '0 9 1 * *',  cadence: 'Día 1 del mes',    rationale: 'Detección mensual de readiness para ascensión.' },
+  { slug: 'capital-allocator',       cron: '0 9 * * 1',  cadence: 'Lunes 09:00 UTC',  rationale: 'Recomendación semanal de allocation.' },
+  { slug: 'synergy-hunter',          cron: '0 9 * * 1',  cadence: 'Lunes 09:00 UTC',  rationale: 'Sinergias activables semanales.' },
+  { slug: 'ascension-coach',         cron: '0 9 1 * *',  cadence: 'Día 1 del mes',    rationale: 'Roadmaps de ascensión mensuales.' },
+  { slug: 'deal-scout',              cron: '0 9 * * 1',  cadence: 'Lunes 09:00 UTC',  rationale: 'Targets nuevos cada semana.' },
+  { slug: 'dd-coordinator',          cron: '0 9 * * 1',  cadence: 'Lunes 09:00 UTC',  rationale: 'Status DD del pipeline.' },
+  { slug: 'valuation-agent',         cron: '0 9 * * 1',  cadence: 'Lunes 09:00 UTC',  rationale: 'Re-valuación semanal de deals activos.' },
+  { slug: 'ic-memo-writer',          cron: '0 9 1 * *',  cadence: 'Día 1 del mes',    rationale: 'Memos IC mensuales.' },
+  { slug: 'forecaster',              cron: '0 9 1 * *',  cadence: 'Día 1 del mes',    rationale: 'Forecast 12m mensual.' },
+  { slug: 'scenario-simulator',      cron: '0 9 1 * *',  cadence: 'Día 1 del mes',    rationale: 'Escenarios what-if mensuales.' },
+  { slug: 'founder-risk-mitigator',  cron: '0 9 1 * *',  cadence: 'Día 1 del mes',    rationale: 'Plan de mitigación mensual.' },
+  { slug: 'board-reporter',          cron: '0 9 1 * *',  cadence: 'Día 1 del mes',    rationale: 'Board pack mensual.' },
+  { slug: 'stakeholder-comms',       cron: '0 9 1 * *',  cadence: 'Día 1 del mes',    rationale: 'Comms internos + externos.' },
+  { slug: 'lp-investor-updater',     cron: '0 9 1 1,4,7,10 *', cadence: 'Trimestral (ene/abr/jul/oct, día 1)', rationale: 'Update trimestral a LPs.' },
+];
+
 export default function Agents() {
   const [agents, setAgents] = useState<AgentRow[]>([]);
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
@@ -149,6 +171,8 @@ export default function Agents() {
   const [filter, setFilter] = useState<'open' | 'all'>('open');
   const [tab, setTab] = useState<'alerts' | 'outputs'>('alerts');
   const [copilotAgencyId, setCopilotAgencyId] = useState<string>(mockAgencies[0]?.id || '');
+  const [recDialogOpen, setRecDialogOpen] = useState(false);
+  const [applyingRec, setApplyingRec] = useState(false);
 
   async function load() {
     const [agentsRes, alertsRes, outputsRes] = await Promise.all([
@@ -218,6 +242,23 @@ export default function Agents() {
     if (selectedOutput?.id === id) setSelectedOutput(null);
   }
 
+  async function applyRecommendedSchedule() {
+    setApplyingRec(true);
+    let ok = 0; let failed = 0;
+    for (const item of RECOMMENDED_SCHEDULE) {
+      const { error } = await supabase.rpc('schedule_agent', { p_slug: item.slug, p_cron: item.cron });
+      if (error) { failed++; console.error(`schedule ${item.slug}:`, error.message); } else { ok++; }
+    }
+    setApplyingRec(false);
+    setRecDialogOpen(false);
+    toast({
+      title: failed === 0 ? 'Schedule activado' : 'Schedule activado parcialmente',
+      description: `${ok} agentes programados${failed ? `, ${failed} fallaron` : ''}.`,
+      variant: failed === 0 ? 'default' : 'destructive',
+    });
+    await load();
+  }
+
   const visibleAlerts = filter === 'open' ? alerts.filter(a => a.status === 'open') : alerts;
   const criticalCount = alerts.filter(a => a.status === 'open' && a.severity === 'critical').length;
   const warningCount = alerts.filter(a => a.status === 'open' && a.severity === 'warning').length;
@@ -247,6 +288,11 @@ export default function Agents() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5"
+              onClick={() => setRecDialogOpen(true)}>
+              <CalendarClock className="w-3.5 h-3.5" />
+              Activar schedule recomendado
+            </Button>
             <Badge variant="outline" className="gap-1.5 border-destructive/40 text-destructive">
               <AlertCircle className="w-3 h-3" /> {criticalCount} críticas
             </Badge>
@@ -430,6 +476,58 @@ export default function Agents() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Recommended schedule confirmation */}
+        <AlertDialog open={recDialogOpen} onOpenChange={setRecDialogOpen}>
+          <AlertDialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <CalendarClock className="w-5 h-5 text-primary" />
+                Activar schedule recomendado
+              </AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3 text-xs">
+                  <p className="text-muted-foreground">
+                    Vas a programar la ejecución automática server-side de <span className="font-semibold text-foreground">{RECOMMENDED_SCHEDULE.length} agentes</span>.
+                    Cada uno generará alertas y/o reports según su cadencia. Los agentes paramétricos (Agency Copilot, Meeting Prep) no se incluyen porque requieren elegir agencia.
+                  </p>
+                  <div className="border border-border rounded-md overflow-hidden">
+                    <table className="w-full text-[11px]">
+                      <thead className="bg-muted/50 text-muted-foreground">
+                        <tr>
+                          <th className="text-left px-2 py-1.5 font-medium">Agente</th>
+                          <th className="text-left px-2 py-1.5 font-medium">Cadencia</th>
+                          <th className="text-left px-2 py-1.5 font-medium">Por qué</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {RECOMMENDED_SCHEDULE.map(item => {
+                          const a = agents.find(x => x.slug === item.slug);
+                          return (
+                            <tr key={item.slug} className="border-t border-border">
+                              <td className="px-2 py-1.5 font-medium text-foreground">{a?.name || item.slug}</td>
+                              <td className="px-2 py-1.5 text-primary whitespace-nowrap">{item.cadence}</td>
+                              <td className="px-2 py-1.5 text-muted-foreground">{item.rationale}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Podés editar o desactivar cualquier schedule individualmente desde la card del agente.
+                  </p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={applyingRec}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={applyRecommendedSchedule} disabled={applyingRec}>
+                {applyingRec ? (<><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Activando…</>) : 'Sí, activar todos'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AppLayout>
   );

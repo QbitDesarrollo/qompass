@@ -42,7 +42,7 @@ export function VerticalDistributionChart() {
       name: v,
       value: mockAgencies.filter(a => a.vertical === v).reduce((s, a) => s + a.ebitda * (a.equity / 100), 0),
       color: VERTICAL_COLORS[v],
-    })).filter(d => d.value > 0);
+    }));
   }, []);
 
   return (

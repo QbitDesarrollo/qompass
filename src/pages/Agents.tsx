@@ -267,6 +267,7 @@ export default function Agents() {
                     onRun={() => handleRun(a)}
                     parametric={!!PARAMETRIC_RUNNERS[a.slug]}
                     paramLabel={PARAMETRIC_RUNNERS[a.slug] ? mockAgencies.find(x => x.id === copilotAgencyId)?.name : undefined}
+                    onScheduleChange={load}
                   />
                 ))}
               </div>
@@ -413,18 +414,57 @@ export default function Agents() {
   );
 }
 
-function AgentCard({ agent, running, onRun, parametric, paramLabel }: {
+const CRON_PRESETS: { label: string; cron: string; help: string }[] = [
+  { label: 'Cada hora',          cron: '0 * * * *',  help: 'Al minuto 0 de cada hora' },
+  { label: 'Diario 08:00 UTC',   cron: '0 8 * * *',  help: 'Todos los días a las 8 AM UTC' },
+  { label: 'Lunes 09:00 UTC',    cron: '0 9 * * 1',  help: 'Cada lunes a las 9 AM UTC' },
+  { label: 'Día 1 del mes 09:00',cron: '0 9 1 * *',  help: 'El primer día de cada mes' },
+];
+
+function AgentCard({ agent, running, onRun, parametric, paramLabel, onScheduleChange }: {
   agent: AgentRow; running: boolean; onRun: () => void;
   parametric?: boolean; paramLabel?: string;
+  onScheduleChange: () => void;
 }) {
   const Icon = ICON_BY_SLUG[agent.slug] || Sparkles;
+  const [cronInput, setCronInput] = useState(agent.cron_expression || '');
+  const [savingCron, setSavingCron] = useState(false);
+  const isScheduled = !!agent.cron_expression;
+
+  async function applyCron(cron: string) {
+    if (parametric) {
+      toast({ title: 'No se puede programar', description: 'Agency Copilot requiere seleccionar una agencia y se ejecuta on-demand.' });
+      return;
+    }
+    setSavingCron(true);
+    const { error } = await supabase.rpc('schedule_agent', { p_slug: agent.slug, p_cron: cron });
+    setSavingCron(false);
+    if (error) {
+      toast({ title: 'Error programando', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Programado', description: `${agent.name} correrá según: ${cron}` });
+    onScheduleChange();
+  }
+  async function clearCron() {
+    setSavingCron(true);
+    const { error } = await supabase.rpc('unschedule_agent', { p_slug: agent.slug });
+    setSavingCron(false);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Schedule eliminado', description: `${agent.name} ya no corre automáticamente.` });
+    onScheduleChange();
+  }
+
   return (
     <Card className="p-4 border-border hover:border-primary/40 transition-colors">
       <div className="flex items-center gap-2 mb-2">
         <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
           <Icon className="w-4 h-4 text-primary" />
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-foreground">{agent.name}</div>
           {parametric && paramLabel ? (
             <div className="text-[10px] uppercase tracking-wider text-primary/80">→ {paramLabel}</div>
@@ -432,18 +472,78 @@ function AgentCard({ agent, running, onRun, parametric, paramLabel }: {
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{agent.category.replace(/_/g, ' ')}</div>
           )}
         </div>
+        {isScheduled && (
+          <Badge variant="outline" className="gap-1 border-primary/40 text-primary text-[10px]">
+            <CalendarClock className="w-3 h-3" /> auto
+          </Badge>
+        )}
       </div>
       <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{agent.description}</p>
+      {isScheduled && (
+        <div className="text-[10px] text-primary/80 mb-2 font-mono">
+          cron: {agent.cron_expression}
+        </div>
+      )}
       <div className="flex items-center justify-between gap-2">
         <div className="text-[10px] text-muted-foreground">
           {agent.last_run_at
             ? `Última corrida: ${formatDistanceToNow(new Date(agent.last_run_at), { addSuffix: true, locale: es })}`
             : 'Nunca ejecutado'}
         </div>
-        <Button size="sm" onClick={onRun} disabled={running} className="h-7 text-xs gap-1.5">
-          {running ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
-          {running ? 'Corriendo' : 'Ejecutar'}
-        </Button>
+        <div className="flex items-center gap-1">
+          {!parametric && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" disabled={savingCron}>
+                  <CalendarClock className="w-3 h-3" />
+                  {isScheduled ? 'Editar' : 'Programar'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-3 space-y-3" align="end">
+                <div>
+                  <div className="text-xs font-semibold mb-1.5">Presets</div>
+                  <div className="grid grid-cols-1 gap-1">
+                    {CRON_PRESETS.map(p => (
+                      <Button key={p.cron} size="sm" variant="ghost"
+                        className="h-auto py-1.5 px-2 justify-start text-left"
+                        onClick={() => { setCronInput(p.cron); applyCron(p.cron); }}>
+                        <div>
+                          <div className="text-xs">{p.label}</div>
+                          <div className="text-[10px] text-muted-foreground font-mono">{p.cron}</div>
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold mb-1.5">Cron personalizado</div>
+                  <div className="flex gap-1">
+                    <Input value={cronInput} onChange={(e) => setCronInput(e.target.value)}
+                      placeholder="0 9 * * 1-5" className="h-7 text-xs font-mono" />
+                    <Button size="sm" className="h-7 text-xs"
+                      disabled={!cronInput.trim() || savingCron}
+                      onClick={() => applyCron(cronInput.trim())}>
+                      Aplicar
+                    </Button>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-1">
+                    Formato: min hora día mes diaSemana · zona UTC
+                  </div>
+                </div>
+                {isScheduled && (
+                  <Button size="sm" variant="ghost" className="h-7 w-full text-xs text-destructive gap-1.5"
+                    onClick={clearCron} disabled={savingCron}>
+                    <Trash2 className="w-3 h-3" /> Eliminar schedule
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
+          )}
+          <Button size="sm" onClick={onRun} disabled={running} className="h-7 text-xs gap-1.5">
+            {running ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+            {running ? 'Corriendo' : 'Ejecutar'}
+          </Button>
+        </div>
       </div>
     </Card>
   );

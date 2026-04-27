@@ -15,6 +15,8 @@ export default function WarRoom() {
   const [customEquity, setCustomEquity] = useState<number | null>(null);
   const [targetDSCR, setTargetDSCR] = useState(1.5);
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
+  const [amortYears, setAmortYears] = useState(6);
+  const [annualRate, setAnnualRate] = useState(10); // % anual
 
   const currentConsolidated = useMemo(() => getConsolidatedEbitda(mockAgencies), []);
 
@@ -82,7 +84,7 @@ export default function WarRoom() {
     const list = mockAgencies.filter(a => a.vertical === selectedVertical);
     const rows = list.map(a => ({
       agency: a,
-      ...calcLeverageCapacity(a, targetDSCR),
+      ...calcLeverageCapacity(a, targetDSCR, amortYears, annualRate / 100),
     }));
     const totalAdditionalDebt = rows.reduce((s, r) => s + r.additionalDebt, 0);
     const totalAdditionalDebtService = rows.reduce((s, r) => s + r.additionalDebtService, 0);
@@ -90,7 +92,7 @@ export default function WarRoom() {
     const totalDS = list.reduce((s, a) => s + a.debtService, 0);
     const verticalDSCR = totalDS > 0 ? totalOCF / totalDS : Infinity;
     return { rows, totalAdditionalDebt, totalAdditionalDebtService, verticalDSCR, totalOCF, totalDS };
-  }, [selectedVertical, targetDSCR]);
+  }, [selectedVertical, targetDSCR, amortYears, annualRate]);
 
   return (
     <AppLayout>

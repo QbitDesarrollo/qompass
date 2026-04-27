@@ -383,7 +383,10 @@ function PriorityList({ priorities, limit, onSelect, selectedId, simulatedIds }:
             </div>
             <div className="text-right shrink-0">
               <div className={`text-base font-bold font-mono ${tone.text}`}>{p.score.toFixed(0)}</div>
-              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">score</div>
+              <div className="flex items-center justify-end gap-1 text-[9px] text-muted-foreground uppercase tracking-wider">
+                score
+                <ScoreBreakdownTooltip p={p} />
+              </div>
             </div>
             <ArrowRight className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
           </AgencyAction>

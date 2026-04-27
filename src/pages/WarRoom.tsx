@@ -7,7 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { Slider } from '@/components/ui/slider';
 
 export default function WarRoom() {
-  const [selectedVertical, setSelectedVertical] = useState<Vertical>('Creative');
+  const [selectedVertical, setSelectedVertical] = useState<Vertical>('Creative & Strategy');
   const [simulateTransition, setSimulateTransition] = useState<'3→2' | '2→1' | null>(null);
   const [exitMultiple, setExitMultiple] = useState(6);
 

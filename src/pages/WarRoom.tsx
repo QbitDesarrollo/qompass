@@ -246,6 +246,14 @@ export default function WarRoom() {
           </div>
         </div>
 
+        {/* Capital Priority — full matrix + ranking */}
+        <CapitalPriorityWidget
+          variant="full"
+          targetDSCR={targetDSCR}
+          amortYears={amortYears}
+          annualRate={annualRate / 100}
+        />
+
         {/* Results */}
         {simulation && (
           <div className="space-y-4 animate-float-up">

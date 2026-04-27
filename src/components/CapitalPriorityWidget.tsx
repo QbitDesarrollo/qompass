@@ -1,6 +1,6 @@
 import { useMemo, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Target, Zap, AlertTriangle, Wrench, Search, ArrowRight, Info, FlaskConical, BookOpen } from 'lucide-react';
+import { Target, Zap, AlertTriangle, Wrench, Search, ArrowRight, Info, FlaskConical, BookOpen, Check, X } from 'lucide-react';
 import { mockAgencies } from '@/lib/mock-data';
 import { computeCapitalPriorities, formatCurrency, QUADRANT_META, PriorityQuadrant, CapitalPriority } from '@/lib/quantum-engine';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -137,6 +137,19 @@ function ActionBadge({ tone, children }: { tone: 'primary' | 'accent' | 'warning
     <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md border ${TONE_CLASSES[tone].badge}`}>
       {children}
     </span>
+  );
+}
+
+function CriterionRow({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <li className="flex items-center gap-1.5 text-[11px]">
+      {ok ? (
+        <Check className="w-3 h-3 text-primary shrink-0" />
+      ) : (
+        <X className="w-3 h-3 text-destructive shrink-0" />
+      )}
+      <span className={ok ? 'text-foreground' : 'text-muted-foreground'}>{label}</span>
+    </li>
   );
 }
 
@@ -403,6 +416,7 @@ function PriorityMatrix({ priorities, onSelect, selectedId, simulatedIds }: { pr
 function PriorityList({ priorities, limit, onSelect, selectedId, simulatedIds }: { priorities: CapitalPriority[]; limit?: number; onSelect?: (id: string) => void; selectedId?: string | null; simulatedIds: Set<string> }) {
   const rows = limit ? priorities.slice(0, limit) : priorities;
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="space-y-1.5">
       {rows.map((p, i) => {
         const tone = TONE_CLASSES[p.action.tone];
@@ -508,6 +522,7 @@ function PriorityList({ priorities, limit, onSelect, selectedId, simulatedIds }:
         );
       })}
     </div>
+    </TooltipProvider>
   );
 }
 

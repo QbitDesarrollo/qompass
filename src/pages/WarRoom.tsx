@@ -436,33 +436,36 @@ export default function WarRoom() {
               <>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div className="glass-card p-4">
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Op. Cashflow</span>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Op. Cashflow <span className="text-muted-foreground/70">/ año</span></span>
                     <p className="text-lg font-bold font-mono mt-1 text-foreground">{formatCurrency(r.agency.operatingCashflow)}</p>
+                    <p className="text-[10px] text-muted-foreground">flujo operativo anual</p>
                   </div>
                   <div className="glass-card p-4">
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Debt Service Actual</span>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Debt Service Actual <span className="text-muted-foreground/70">/ año</span></span>
                     <p className="text-lg font-bold font-mono mt-1 text-muted-foreground">{formatCurrency(r.agency.debtService)}</p>
                     <div className="mt-1"><DSCRBadge value={r.currentDSCR} /></div>
                   </div>
                   <div className="glass-card p-4 border-accent/30">
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Debt Svc Máx (objetivo)</span>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Debt Svc Máx <span className="text-muted-foreground/70">/ año</span></span>
                     <p className="text-lg font-bold font-mono mt-1 text-accent">{formatCurrency(r.maxDebtService)}</p>
-                    <p className="text-[10px] text-muted-foreground">manteniendo DSCR ≥ {targetDSCR.toFixed(2)}x</p>
+                    <p className="text-[10px] text-muted-foreground">pago anual máx · DSCR ≥ {targetDSCR.toFixed(2)}x</p>
                   </div>
                   <div className={`glass-card p-4 ${exhausted ? 'border-destructive/40' : 'border-primary/30 glow-emerald'}`}>
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Capacidad Adicional</span>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Capacidad Adicional <span className="text-muted-foreground/70">(principal)</span></span>
                     <p className={`text-2xl font-bold font-mono mt-1 ${exhausted ? 'text-destructive' : 'text-primary'}`}>
                       {exhausted ? '— sin capacidad' : `+${formatCurrency(r.additionalDebt)}`}
                     </p>
                     {!exhausted && (
                       <p className="text-[10px] text-muted-foreground">
-                        Δ servicio: {formatCurrency(r.maxDebtService)} − {formatCurrency(r.agency.debtService)} = +{formatCurrency(r.additionalDebtService)}
+                        Δ servicio anual: {formatCurrency(r.maxDebtService)} − {formatCurrency(r.agency.debtService)} = <span className="text-foreground">+{formatCurrency(r.additionalDebtService)}/año</span>
+                        <br />× 6 años de amortización ⇒ <span className="text-primary">{formatCurrency(r.additionalDebt)}</span> de principal
                       </p>
                     )}
                   </div>
                 </div>
-                <div className="glass-card px-4 py-2 text-[10px] text-muted-foreground">
-                  Capacidad Adicional = (Debt Svc Máx − Debt Service Actual) × 6x. El múltiplo 6x aproxima deuda corporativa a ~6 años amortizable.
+                <div className="glass-card px-4 py-3 text-[11px] text-muted-foreground">
+                  <span className="text-foreground font-semibold">¿Por qué la capacidad supera al Debt Svc Máx?</span>{' '}
+                  Las 3 primeras tarjetas son <span className="text-foreground">flujos anuales</span> (lo que pagas cada año). La <span className="text-primary">Capacidad Adicional</span> es el <span className="text-foreground">principal de deuda nueva</span> (stock) que ese flujo extra puede sostener: <span className="font-mono">(Debt Svc Máx − Debt Service Actual) × 6x</span>, donde 6x ≈ deuda corporativa amortizable a ~6 años.
                 </div>
 
                 {/* Acquisition coverage widget */}

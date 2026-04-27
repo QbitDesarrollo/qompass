@@ -156,7 +156,10 @@ export default function Dashboard() {
                       <td className="py-2.5 px-3 text-right font-mono text-xs text-primary">{formatCurrency(a.ebitda)}</td>
                       <td className="py-2.5 px-3 text-right font-mono text-xs text-accent">{formatCurrency(a.ebitda * a.equity / 100)}</td>
                       <td className="py-2.5 px-3">
-                        {ascension && <AscensionBadge type={ascension.type} />}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <DSCRBadge value={calcDSCR(a)} />
+                          {ascension && <AscensionBadge type={ascension.type} />}
+                        </div>
                       </td>
                     </tr>
                   );

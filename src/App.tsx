@@ -9,8 +9,11 @@ import AgencyDetail from "./pages/AgencyDetail";
 import WarRoom from "./pages/WarRoom";
 import DataRoom from "./pages/DataRoom";
 import Playbooks from "./pages/Playbooks";
+import Deals from "./pages/Deals";
+import DealDetail from "./pages/DealDetail";
 import NotFound from "./pages/NotFound";
 import { SimulationProvider } from "./lib/simulation-store";
+import { DealsProvider } from "./lib/deals/deals-store";
 
 const queryClient = new QueryClient();
 
@@ -18,6 +21,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <SimulationProvider>
+        <DealsProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
@@ -29,9 +33,12 @@ const App = () => (
             <Route path="/data-room" element={<DataRoom />} />
             <Route path="/playbooks" element={<Playbooks />} />
             <Route path="/playbooks/:agencyId" element={<Playbooks />} />
+            <Route path="/deals" element={<Deals />} />
+            <Route path="/deals/:id" element={<DealDetail />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        </DealsProvider>
       </SimulationProvider>
     </TooltipProvider>
   </QueryClientProvider>

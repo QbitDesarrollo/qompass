@@ -23,7 +23,7 @@ export default function WarRoom() {
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
   const [amortYears, setAmortYears] = useState(6);
   const [annualRate, setAnnualRate] = useState(10); // % anual
-  const [period, setPeriod] = useState<Period>(() => currentPeriod('month'));
+  const [period, setPeriod] = useState<Period>(() => currentPeriod('last12'));
   const { applyOverrides, isSimulated, simulatedIds, simulatedCount, clearAll } = useSimulation();
 
   // Vista de agencias con métricas financieras del periodo seleccionado.

@@ -14,7 +14,7 @@ import { Period, currentPeriod, getSnapshot, previousPeriod, yoyPeriod, getDualD
 import { Link } from 'react-router-dom';
 
 export default function Dashboard() {
-  const [period, setPeriod] = useState<Period>(() => currentPeriod('month'));
+  const [period, setPeriod] = useState<Period>(() => currentPeriod('last12'));
 
   const { snap, prev, yoy, deltas } = useMemo(() => {
     const s = getSnapshot(period);

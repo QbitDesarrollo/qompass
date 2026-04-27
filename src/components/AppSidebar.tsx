@@ -6,8 +6,8 @@ const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/agencies', label: 'Agencias', icon: Building2 },
   { path: '/war-room', label: 'War Room', icon: Swords },
-  { path: '/deals', label: 'Deals', icon: Briefcase },
   { path: '/data-room', label: 'Data Room', icon: FileStack },
+  { path: '/deals', label: 'Deals', icon: Briefcase },
   { path: '/playbooks', label: 'Playbooks', icon: BookOpen },
 ];
 

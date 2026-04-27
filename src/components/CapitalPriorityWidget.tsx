@@ -1,8 +1,9 @@
 import { useMemo, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Target, Zap, AlertTriangle, Wrench, Search, ArrowRight } from 'lucide-react';
+import { Target, Zap, AlertTriangle, Wrench, Search, ArrowRight, Info } from 'lucide-react';
 import { mockAgencies } from '@/lib/mock-data';
 import { computeCapitalPriorities, formatCurrency, QUADRANT_META, PriorityQuadrant, CapitalPriority } from '@/lib/quantum-engine';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const TONE_CLASSES: Record<'primary' | 'accent' | 'warning' | 'danger', { badge: string; dot: string; ring: string; text: string; bg: string }> = {
   primary: { badge: 'bg-primary/15 text-primary border-primary/30', dot: 'bg-primary', ring: 'ring-primary/40', text: 'text-primary', bg: 'bg-primary/10' },
@@ -17,6 +18,117 @@ const QUADRANT_ICON: Record<PriorityQuadrant, typeof Zap> = {
   investigate: Search,
   restructure: AlertTriangle,
 };
+
+/** Lógica detallada por cuadrante para los tooltips */
+const QUADRANT_LOGIC: Record<PriorityQuadrant, {
+  criteria: string;
+  signals: string[];
+  action: string;
+  nextSteps: string[];
+}> = {
+  deploy: {
+    criteria: 'EBITDA ≥ mediana del set  ·  Capacidad de deuda adicional ≥ mediana del set',
+    signals: [
+      'Genera utilidad probada y sostenida',
+      'DSCR holgado vs. objetivo (default 1.5x) → headroom para más deuda',
+      'El dólar marginal de capital rinde más aquí (mejor ROIC esperado)',
+    ],
+    action: 'Inyectar capital ya: M&A, expansión, equity buyout, o debt-funded growth.',
+    nextSteps: [
+      'Validar tesis de crecimiento y pipeline comercial',
+      'Estructurar term loan o senior notes al plazo óptimo',
+      'Si tiene oportunidad de ascenso (IPE/IPP/IPC), priorizar la transición de nivel',
+    ],
+  },
+  optimize: {
+    criteria: 'EBITDA ≥ mediana  ·  Capacidad de deuda adicional < mediana',
+    signals: [
+      'Rentable pero sin margen de deuda nueva (DSCR ya cerca del objetivo)',
+      'Posible exceso de debt service actual o cashflow operativo subóptimo',
+      'Conversión EBITDA → caja puede estar comprimida (working capital, capex)',
+    ],
+    action: 'Optimizar cashflow y/o refinanciar la deuda existente antes de nuevo capital.',
+    nextSteps: [
+      'Refinanciar a plazos más largos para bajar el debt service anual',
+      'Liberar caja: working capital, política de cobranza, capex',
+      'Reevaluar después: probablemente migra a "Inyectar Capital"',
+    ],
+  },
+  investigate: {
+    criteria: 'EBITDA < mediana  ·  Capacidad de deuda adicional ≥ mediana',
+    signals: [
+      'Tiene headroom financiero pero el retorno actual no lo justifica',
+      'Capacidad ociosa: baja deuda y bajo cashflow operativo',
+      'Puede ser early-stage, pricing débil, o tesis de inversión sin tracción',
+    ],
+    action: 'Investigar antes de desplegar: la capacidad sin retorno destruye valor si se apalanca mal.',
+    nextSteps: [
+      'Revisar pricing, mix de servicios y eficiencia operativa',
+      'Validar si hay oportunidad de ascenso (IPE/IPP/IPC)',
+      'Si hay tesis clara, capital pequeño con KPIs estrictos',
+    ],
+  },
+  restructure: {
+    criteria: 'EBITDA < mediana  ·  Capacidad de deuda adicional < mediana',
+    signals: [
+      'Bajo retorno y sin headroom financiero',
+      'Riesgo de DSCR < objetivo → no soporta deuda adicional',
+      'Drag sobre el EBITDA consolidado del grupo',
+    ],
+    action: 'Reestructurar, fusionar con otra spoke, o desinvertir.',
+    nextSteps: [
+      'Plan de turnaround a 6-12 meses con métricas claras',
+      'Evaluar consolidación con otra agencia de la misma vertical',
+      'Si no hay tesis de recuperación, exit ordenado',
+    ],
+  },
+};
+
+function QuadrantInfoTooltip({ q }: { q: PriorityQuadrant }) {
+  const meta = QUADRANT_META[q];
+  const logic = QUADRANT_LOGIC[q];
+  const tone = TONE_CLASSES[meta.tone];
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Información sobre cuadrante ${meta.label}`}
+          className={`p-0.5 rounded-md text-muted-foreground hover:${tone.text} transition-colors`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Info className="w-3 h-3" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" align="start" className="max-w-xs p-3 space-y-2 text-xs">
+        <div>
+          <div className={`font-semibold ${tone.text}`}>{meta.label}</div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">Criterio</div>
+          <div className="font-mono text-[10px] text-foreground">{logic.criteria}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Señales</div>
+          <ul className="list-disc pl-4 space-y-0.5 text-foreground/90">
+            {logic.signals.map(s => <li key={s}>{s}</li>)}
+          </ul>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Acción</div>
+          <div className={`${tone.text} font-medium`}>{logic.action}</div>
+        </div>
+        <div>
+          <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Próximos pasos</div>
+          <ul className="list-disc pl-4 space-y-0.5 text-foreground/90">
+            {logic.nextSteps.map(s => <li key={s}>{s}</li>)}
+          </ul>
+        </div>
+        <div className="pt-1 border-t border-border/40 text-[10px] text-muted-foreground">
+          Score = 60% EBITDA + 30% capacidad + 10% ascenso (normalizado al máximo del set).
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 function ActionBadge({ tone, children }: { tone: 'primary' | 'accent' | 'warning' | 'danger'; children: React.ReactNode }) {
   return (
@@ -67,6 +179,7 @@ function PriorityMatrix({ priorities, onSelect, selectedId }: { priorities: Capi
   ];
 
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="relative">
       {/* Axis labels */}
       <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
@@ -79,9 +192,12 @@ function PriorityMatrix({ priorities, onSelect, selectedId }: { priorities: Capi
           const tone = TONE_CLASSES[QUADRANT_META[c.q].tone];
           return (
             <div key={c.q} className={`absolute w-1/2 h-1/2 ${c.pos} ${tone.bg} border border-border/40`}>
-              <div className="p-2">
-                <div className={`text-[10px] font-semibold ${tone.text}`}>{c.title}</div>
-                <div className="text-[9px] text-muted-foreground">{c.subtitle}</div>
+              <div className="p-2 flex items-start justify-between gap-1">
+                <div>
+                  <div className={`text-[10px] font-semibold ${tone.text}`}>{c.title}</div>
+                  <div className="text-[9px] text-muted-foreground">{c.subtitle}</div>
+                </div>
+                <QuadrantInfoTooltip q={c.q} />
               </div>
             </div>
           );
@@ -120,6 +236,7 @@ function PriorityMatrix({ priorities, onSelect, selectedId }: { priorities: Capi
         })}
       </div>
     </div>
+    </TooltipProvider>
   );
 }
 

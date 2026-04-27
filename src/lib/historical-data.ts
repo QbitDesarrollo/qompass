@@ -416,3 +416,13 @@ export function getAllAgencyMetrics(period: Period): Record<string, AgencyPeriod
   });
   return out;
 }
+
+/** Serie temporal para UNA agencia: últimos N periodos terminando en `endPeriod`. */
+export function getAgencyPeriodSeries(agencyId: string, endPeriod: Period, count: number): AgencyPeriodMetrics[] {
+  const out: AgencyPeriodMetrics[] = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const p = shiftPeriod(endPeriod, -i);
+    out.push(getAgencyPeriodMetrics(agencyId, p));
+  }
+  return out;
+}

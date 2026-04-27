@@ -15,6 +15,8 @@ export default function WarRoom() {
   const [customEquity, setCustomEquity] = useState<number | null>(null);
   const [targetDSCR, setTargetDSCR] = useState(1.5);
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
+  const [amortYears, setAmortYears] = useState(6);
+  const [annualRate, setAnnualRate] = useState(10); // % anual
 
   const currentConsolidated = useMemo(() => getConsolidatedEbitda(mockAgencies), []);
 
@@ -82,7 +84,7 @@ export default function WarRoom() {
     const list = mockAgencies.filter(a => a.vertical === selectedVertical);
     const rows = list.map(a => ({
       agency: a,
-      ...calcLeverageCapacity(a, targetDSCR),
+      ...calcLeverageCapacity(a, targetDSCR, amortYears, annualRate / 100),
     }));
     const totalAdditionalDebt = rows.reduce((s, r) => s + r.additionalDebt, 0);
     const totalAdditionalDebtService = rows.reduce((s, r) => s + r.additionalDebtService, 0);
@@ -90,7 +92,7 @@ export default function WarRoom() {
     const totalDS = list.reduce((s, a) => s + a.debtService, 0);
     const verticalDSCR = totalDS > 0 ? totalOCF / totalDS : Infinity;
     return { rows, totalAdditionalDebt, totalAdditionalDebtService, verticalDSCR, totalOCF, totalDS };
-  }, [selectedVertical, targetDSCR]);
+  }, [selectedVertical, targetDSCR, amortYears, annualRate]);
 
   return (
     <AppLayout>
@@ -397,23 +399,32 @@ export default function WarRoom() {
 
         {/* Capacidad de Apalancamiento — siempre visible para la vertical */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-start justify-between flex-wrap gap-3">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Banknote className="w-4 h-4 text-primary" />
               Capacidad de Apalancamiento {selectedAgencyId ? `— ${leverage.rows.find(r => r.agency.id === selectedAgencyId)?.agency.name}` : `— ${selectedVertical}`}
             </h2>
-            <div className="flex items-center gap-3 glass-card px-4 py-2">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">DSCR Objetivo</span>
-              <div className="flex items-center gap-2 min-w-[180px]">
-                <Slider
-                  value={[targetDSCR]}
-                  onValueChange={([v]) => setTargetDSCR(v)}
-                  min={1.25}
-                  max={2}
-                  step={0.05}
-                  className="w-32"
-                />
-                <span className="text-sm font-bold font-mono text-accent w-12 text-right">{targetDSCR.toFixed(2)}x</span>
+            <div className="glass-card p-3 grid grid-cols-1 sm:grid-cols-3 gap-4 min-w-[320px]">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">DSCR Objetivo</span>
+                  <span className="text-xs font-bold font-mono text-accent">{targetDSCR.toFixed(2)}x</span>
+                </div>
+                <Slider value={[targetDSCR]} onValueChange={([v]) => setTargetDSCR(v)} min={1.25} max={2} step={0.05} />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Plazo</span>
+                  <span className="text-xs font-bold font-mono text-primary">{amortYears} años</span>
+                </div>
+                <Slider value={[amortYears]} onValueChange={([v]) => setAmortYears(v)} min={1} max={15} step={1} />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Tasa Anual</span>
+                  <span className="text-xs font-bold font-mono text-primary">{annualRate.toFixed(2)}%</span>
+                </div>
+                <Slider value={[annualRate]} onValueChange={([v]) => setAnnualRate(v)} min={0} max={25} step={0.25} />
               </div>
             </div>
           </div>
@@ -458,7 +469,8 @@ export default function WarRoom() {
                     {!exhausted && (
                       <p className="text-[10px] text-muted-foreground">
                         Δ servicio anual: {formatCurrency(r.maxDebtService)} − {formatCurrency(r.agency.debtService)} = <span className="text-foreground">+{formatCurrency(r.additionalDebtService)}/año</span>
-                        <br />× 6 años de amortización ⇒ <span className="text-primary">{formatCurrency(r.additionalDebt)}</span> de principal
+                        <br />⇒ PV @ {amortYears}a · {annualRate.toFixed(2)}% = <span className="text-primary">{formatCurrency(r.additionalDebt)}</span>
+                        <br />Intereses 1er año ≈ <span className="text-accent">{formatCurrency(r.annualInterestEst)}</span>
                       </p>
                     )}
                   </div>
@@ -466,6 +478,12 @@ export default function WarRoom() {
                 <div className="glass-card px-4 py-3 text-[11px] text-muted-foreground">
                   <span className="text-foreground font-semibold">¿Por qué la capacidad supera al Debt Svc Máx?</span>{' '}
                   Las 3 primeras tarjetas son <span className="text-foreground">flujos anuales</span> (lo que pagas cada año). La <span className="text-primary">Capacidad Adicional</span> es el <span className="text-foreground">principal de deuda nueva</span> (stock) que ese flujo extra puede sostener: <span className="font-mono">(Debt Svc Máx − Debt Service Actual) × 6x</span>, donde 6x ≈ deuda corporativa amortizable a ~6 años.
+                  <br /><br />
+                  <span className="text-foreground font-semibold">Vehículo financiero:</span>{' '}
+                  Plazo <span className="font-mono text-primary">{amortYears} años</span> · tasa <span className="font-mono text-primary">{annualRate.toFixed(2)}%</span> anual.
+                  Capacidad = Valor Presente de la anualidad
+                  <span className="font-mono"> PV = pago × (1 − (1 + i)<sup>−n</sup>) / i</span>.
+                  Ajusta los sliders para reflejar revolventes (corto plazo, tasas mensuales variables), bullets (1–3 años), term loans (5–7 años) o senior notes (10+ años).
                 </div>
 
                 {/* Acquisition coverage widget */}

@@ -11,7 +11,7 @@ import { Agency } from './quantum-engine';
  *  - Variación independiente por métrica
  */
 
-export type Granularity = 'month' | 'quarter' | 'year';
+export type Granularity = 'month' | 'quarter' | 'year' | 'last12' | 'last24' | 'custom';
 
 export interface MonthlyPoint {
   /** YYYY-MM */
@@ -134,16 +134,29 @@ export function getAllHistories(): AgencyHistory[] {
 
 export interface Period {
   granularity: Granularity;
-  /** Año del periodo */
+  /** Año del periodo (granularity=month|quarter|year). Ignorado en last12/last24/custom. */
   year: number;
-  /** Mes 1-12 (granularity=month), trimestre 1-4 (granularity=quarter), o 0 (granularity=year) */
+  /** Mes 1-12 (granularity=month), trimestre 1-4 (granularity=quarter), o 0. Ignorado en presets/custom. */
   index: number;
+  /** Rango personalizado YYYY-MM (sólo granularity=custom). */
+  customFrom?: string;
+  customTo?: string;
 }
 
 export function currentPeriod(g: Granularity): Period {
   if (g === 'month') return { granularity: g, year: ANCHOR_YEAR, index: ANCHOR_MONTH };
   if (g === 'quarter') return { granularity: g, year: ANCHOR_YEAR, index: Math.ceil(ANCHOR_MONTH / 3) };
-  return { granularity: g, year: ANCHOR_YEAR, index: 0 };
+  if (g === 'year') return { granularity: g, year: ANCHOR_YEAR, index: 0 };
+  if (g === 'last12' || g === 'last24') return { granularity: g, year: ANCHOR_YEAR, index: ANCHOR_MONTH };
+  // custom — por defecto, los últimos 6 meses
+  const start = addMonths(ANCHOR_YEAR, ANCHOR_MONTH, -5);
+  return {
+    granularity: 'custom',
+    year: ANCHOR_YEAR,
+    index: ANCHOR_MONTH,
+    customFrom: ymKey(start.year, start.month),
+    customTo: ymKey(ANCHOR_YEAR, ANCHOR_MONTH),
+  };
 }
 
 export function shiftPeriod(p: Period, delta: number): Period {
@@ -155,7 +168,18 @@ export function shiftPeriod(p: Period, delta: number): Period {
     const totalQ = p.year * 4 + (p.index - 1) + delta;
     return { granularity: 'quarter', year: Math.floor(totalQ / 4), index: (totalQ % 4) + 1 };
   }
-  return { granularity: 'year', year: p.year + delta, index: 0 };
+  if (p.granularity === 'year') return { granularity: 'year', year: p.year + delta, index: 0 };
+  // last12/last24/custom: desplazar el ancla en meses
+  const months = p.granularity === 'last12' ? 12 : p.granularity === 'last24' ? 24 : 1;
+  const anchor = addMonths(p.year, p.index, delta * months);
+  if (p.granularity === 'custom' && p.customFrom && p.customTo) {
+    const [fy, fm] = p.customFrom.split('-').map(Number);
+    const [ty, tm] = p.customTo.split('-').map(Number);
+    const f = addMonths(fy, fm, delta);
+    const t = addMonths(ty, tm, delta);
+    return { ...p, customFrom: ymKey(f.year, f.month), customTo: ymKey(t.year, t.month) };
+  }
+  return { ...p, year: anchor.year, index: anchor.month };
 }
 
 export function previousPeriod(p: Period): Period {
@@ -165,7 +189,17 @@ export function previousPeriod(p: Period): Period {
 export function yoyPeriod(p: Period): Period {
   if (p.granularity === 'month') return shiftPeriod(p, -12);
   if (p.granularity === 'quarter') return shiftPeriod(p, -4);
-  return shiftPeriod(p, -1);
+  if (p.granularity === 'year') return shiftPeriod(p, -1);
+  // last12/last24/custom: shift de 12 meses
+  if (p.granularity === 'custom' && p.customFrom && p.customTo) {
+    const [fy, fm] = p.customFrom.split('-').map(Number);
+    const [ty, tm] = p.customTo.split('-').map(Number);
+    const f = addMonths(fy, fm, -12);
+    const t = addMonths(ty, tm, -12);
+    return { ...p, customFrom: ymKey(f.year, f.month), customTo: ymKey(t.year, t.month) };
+  }
+  const a = addMonths(p.year, p.index, -12);
+  return { ...p, year: a.year, index: a.month };
 }
 
 const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -173,7 +207,22 @@ const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Se
 export function formatPeriod(p: Period): string {
   if (p.granularity === 'month') return `${MONTH_NAMES[p.index - 1]} ${p.year}`;
   if (p.granularity === 'quarter') return `Q${p.index} ${p.year}`;
-  return `${p.year}`;
+  if (p.granularity === 'year') return `${p.year}`;
+  if (p.granularity === 'last12') {
+    const start = addMonths(p.year, p.index, -11);
+    return `${MONTH_NAMES[start.month - 1]} ${start.year} → ${MONTH_NAMES[p.index - 1]} ${p.year}`;
+  }
+  if (p.granularity === 'last24') {
+    const start = addMonths(p.year, p.index, -23);
+    return `${MONTH_NAMES[start.month - 1]} ${start.year} → ${MONTH_NAMES[p.index - 1]} ${p.year}`;
+  }
+  // custom
+  if (p.customFrom && p.customTo) {
+    const [fy, fm] = p.customFrom.split('-').map(Number);
+    const [ty, tm] = p.customTo.split('-').map(Number);
+    return `${MONTH_NAMES[fm - 1]} ${fy} → ${MONTH_NAMES[tm - 1]} ${ty}`;
+  }
+  return 'Personalizado';
 }
 
 /** ¿Pertenece (year,month) al periodo p? */
@@ -184,7 +233,22 @@ function pointInPeriod(year: number, month: number, p: Period): boolean {
     const q = Math.ceil(month / 3);
     return q === p.index;
   }
-  return year === p.year;
+  if (p.granularity === 'year') return year === p.year;
+  // Rango por meses (inclusive)
+  let fromY: number, fromM: number, toY: number, toM: number;
+  if (p.granularity === 'last12') {
+    const start = addMonths(p.year, p.index, -11);
+    fromY = start.year; fromM = start.month; toY = p.year; toM = p.index;
+  } else if (p.granularity === 'last24') {
+    const start = addMonths(p.year, p.index, -23);
+    fromY = start.year; fromM = start.month; toY = p.year; toM = p.index;
+  } else {
+    if (!p.customFrom || !p.customTo) return false;
+    [fromY, fromM] = p.customFrom.split('-').map(Number);
+    [toY, toM] = p.customTo.split('-').map(Number);
+  }
+  const k = year * 12 + month;
+  return k >= fromY * 12 + fromM && k <= toY * 12 + toM;
 }
 
 /** ¿Está el periodo dentro del rango cubierto por la historia? */

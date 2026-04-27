@@ -3,7 +3,7 @@ import {
   calcIPE, calcIPP, calcIPC, calcDSCR, getDSCRStatus,
   calcLeverageCapacity, getAscensionOpportunity, NIVEL_LABELS,
 } from '@/lib/quantum-engine';
-import { getAllHistories, baselineLikeFromHistory } from '@/lib/historical-data';
+import { getAllHistories } from '@/lib/historical-data';
 import {
   callAgentReason, finishRun, getAgentBySlug, saveOutput, startRun, AgentRunResult,
 } from './shared';

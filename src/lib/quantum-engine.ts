@@ -104,20 +104,36 @@ export const DSCR_STATUS_LABEL: Record<DSCRStatus, string> = {
 // (el debt service incremental se traduce a deuda incremental usando un
 // múltiplo deuda/servicio). Si no hay debt service base, asumimos un coverage
 // service factor estándar de ~6x (≈ deuda a 6 años amortizada con interés).
-export function calcLeverageCapacity(a: Agency, targetDSCR: number = 1.5): {
+// Present value of an annuity: principal soportado por una cuota anual constante
+// dado plazo (años) y tasa anual. Si tasa = 0, el principal es cuota × plazo.
+export function pvAnnuity(annualPayment: number, years: number, annualRate: number): number {
+  if (annualPayment <= 0 || years <= 0) return 0;
+  if (annualRate <= 0) return annualPayment * years;
+  const r = annualRate;
+  return annualPayment * (1 - Math.pow(1 + r, -years)) / r;
+}
+
+export function calcLeverageCapacity(
+  a: Agency,
+  targetDSCR: number = 1.5,
+  amortYears: number = 6,
+  annualRate: number = 0.10,
+): {
   additionalDebtService: number;
   additionalDebt: number;
+  annualInterestEst: number;
   currentDSCR: number;
   maxDebtService: number;
+  amortYears: number;
+  annualRate: number;
 } {
   const currentDSCR = calcDSCR(a);
   const maxDebtService = a.operatingCashflow / targetDSCR;
   const additionalDebtService = Math.max(0, maxDebtService - a.debtService);
-  // Implied debt multiple: si hay deuda actual, derivamos el ratio deuda/servicio,
-  // si no, usamos 6x como proxy estándar de financiamiento corporativo.
-  const debtServiceMultiple = 6;
-  const additionalDebt = additionalDebtService * debtServiceMultiple;
-  return { additionalDebtService, additionalDebt, currentDSCR, maxDebtService };
+  const additionalDebt = pvAnnuity(additionalDebtService, amortYears, annualRate);
+  // Estimación de intereses del primer año sobre el principal nuevo
+  const annualInterestEst = additionalDebt * annualRate;
+  return { additionalDebtService, additionalDebt, annualInterestEst, currentDSCR, maxDebtService, amortYears, annualRate };
 }
 
 export function formatCurrency(n: number): string {

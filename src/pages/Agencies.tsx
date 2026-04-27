@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import AppLayout from '@/components/AppLayout';
-import { NivelBadge, AscensionBadge } from '@/components/StatusBadges';
+import { NivelBadge, AscensionBadge, DSCRBadge } from '@/components/StatusBadges';
 import { mockAgencies } from '@/lib/mock-data';
-import { VERTICALS, NIVELES, Vertical, NivelIntegracion, formatCurrency, formatPercent, getAscensionOpportunity, calcIPE, calcIPP, calcIPC, isLevel1Eligible } from '@/lib/quantum-engine';
+import { VERTICALS, NIVELES, Vertical, NivelIntegracion, formatCurrency, formatPercent, getAscensionOpportunity, calcIPE, calcIPP, calcIPC, calcDSCR, isLevel1Eligible } from '@/lib/quantum-engine';
 import { Search, Filter } from 'lucide-react';
 
 export default function AgenciesPage() {
@@ -75,6 +75,9 @@ export default function AgenciesPage() {
                   <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">Revenue</th>
                   <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">EBITDA</th>
                   <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">Margen</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">Op. CF</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">Debt Svc</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">DSCR</th>
                   <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">IPE</th>
                   <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">IPP</th>
                   <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">IPC</th>
@@ -87,6 +90,7 @@ export default function AgenciesPage() {
                   const ipe = calcIPE(a);
                   const ipp = calcIPP(a);
                   const ipc = calcIPC(a);
+                  const dscr = calcDSCR(a);
                   const eligible = isLevel1Eligible(a);
                   return (
                     <tr key={a.id} className={`border-b border-border/30 hover:bg-secondary/20 transition-colors ${ascension ? 'bg-accent/5' : ''}`}>
@@ -103,6 +107,9 @@ export default function AgenciesPage() {
                       <td className="py-3 px-4 text-right font-mono text-xs">{formatCurrency(a.revenue)}</td>
                       <td className="py-3 px-4 text-right font-mono text-xs text-primary">{formatCurrency(a.ebitda)}</td>
                       <td className="py-3 px-4 text-right font-mono text-xs">{formatPercent(a.margin)}</td>
+                      <td className="py-3 px-4 text-right font-mono text-xs">{formatCurrency(a.operatingCashflow)}</td>
+                      <td className="py-3 px-4 text-right font-mono text-xs text-muted-foreground">{formatCurrency(a.debtService)}</td>
+                      <td className="py-3 px-4"><DSCRBadge value={dscr} /></td>
                       <td className="py-3 px-4 text-right font-mono text-xs">{ipe.toFixed(2)}</td>
                       <td className="py-3 px-4 text-right font-mono text-xs">{ipp.toFixed(2)}</td>
                       <td className="py-3 px-4 text-right font-mono text-xs">{ipc.toFixed(2)}</td>

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Building2, Swords, FileStack, BookOpen, Briefcase, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Building2, Swords, FileStack, BookOpen, Briefcase, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppSidebar } from './SidebarContext';
 
 const navItems = [
@@ -8,6 +8,7 @@ const navItems = [
   { path: '/war-room', label: 'War Room', icon: Swords },
   { path: '/data-room', label: 'Data Room', icon: FileStack },
   { path: '/deals', label: 'Deals', icon: Briefcase },
+  { path: '/projections', label: 'Proyecciones', icon: TrendingUp },
   { path: '/playbooks', label: 'Playbooks', icon: BookOpen },
 ];
 

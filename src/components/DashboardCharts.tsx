@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { mockAgencies } from '@/lib/mock-data';
 import { VERTICALS, VERTICAL_COLORS, formatCurrency, getConsolidatedEbitda } from '@/lib/quantum-engine';
+import InfoTooltip from '@/components/InfoTooltip';
 
 export function PowerMapChart() {
   const data = useMemo(() => {
@@ -17,7 +18,20 @@ export function PowerMapChart() {
 
   return (
     <div className="glass-card p-5">
-      <h3 className="text-sm font-semibold text-foreground mb-1">Mapa de Poder a 5 Años</h3>
+      <div className="flex items-center gap-1.5 mb-1">
+        <h3 className="text-sm font-semibold text-foreground">Mapa de Poder a 5 Años</h3>
+        <InfoTooltip>
+          <div className="font-semibold text-foreground">Proyección de EBITDA Consolidado</div>
+          <div className="text-muted-foreground">EBITDA bajo control institucional proyectado bajo curva de adquisición y ascenso de niveles.</div>
+          <div className="font-mono text-[10px] text-foreground">Base × factor de crecimiento por año</div>
+          <ul className="list-disc pl-4 text-[10px] text-muted-foreground">
+            <li>2025: base actual (1.00x)</li>
+            <li>2026: 1.15x · 2027: 1.35x</li>
+            <li>2028: 1.60x · 2029: 2.00x</li>
+          </ul>
+          <div className="text-[10px] text-muted-foreground">Asume ejecución del plan de M&A y ascensos N4→N3→N2→N1.</div>
+        </InfoTooltip>
+      </div>
       <p className="text-xs text-muted-foreground mb-4">Proyección de EBITDA bajo control institucional</p>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data}>
@@ -47,7 +61,18 @@ export function VerticalDistributionChart() {
 
   return (
     <div className="glass-card p-5">
-      <h3 className="text-sm font-semibold text-foreground mb-1">EBITDA por Vertical</h3>
+      <div className="flex items-center gap-1.5 mb-1">
+        <h3 className="text-sm font-semibold text-foreground">EBITDA por Vertical</h3>
+        <InfoTooltip>
+          <div className="font-semibold text-foreground">Distribución del EBITDA Consolidado</div>
+          <div className="text-muted-foreground">Cuánto aporta cada vertical al EBITDA del grupo, ponderado por equity.</div>
+          <div className="font-mono text-[10px] text-foreground">Σ (EBITDA<sub>i</sub> × equity<sub>i</sub>) por vertical</div>
+          <ul className="list-disc pl-4 text-[10px] text-muted-foreground">
+            <li>Concentración alta → riesgo de dependencia</li>
+            <li>Distribución pareja → resiliencia y diversificación</li>
+          </ul>
+        </InfoTooltip>
+      </div>
       <p className="text-xs text-muted-foreground mb-4">Distribución del EBITDA consolidado</p>
       <div className="flex items-center gap-4">
         <ResponsiveContainer width="50%" height={180}>

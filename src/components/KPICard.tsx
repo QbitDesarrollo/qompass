@@ -1,4 +1,6 @@
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon, Info } from 'lucide-react';
+import { ReactNode } from 'react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface KPICardProps {
   title: string;
@@ -7,9 +9,10 @@ interface KPICardProps {
   icon: LucideIcon;
   trend?: { value: string; positive: boolean };
   variant?: 'default' | 'emerald' | 'gold';
+  info?: ReactNode;
 }
 
-export default function KPICard({ title, value, subtitle, icon: Icon, trend, variant = 'default' }: KPICardProps) {
+export default function KPICard({ title, value, subtitle, icon: Icon, trend, variant = 'default', info }: KPICardProps) {
   const borderClass = variant === 'emerald' 
     ? 'border-primary/30 glow-emerald' 
     : variant === 'gold' 
@@ -19,7 +22,23 @@ export default function KPICard({ title, value, subtitle, icon: Icon, trend, var
   return (
     <div className={`glass-card p-5 ${borderClass} animate-float-up`}>
       <div className="flex items-start justify-between mb-3">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</span>
+          {info && (
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" aria-label={`Información sobre ${title}`} className="text-muted-foreground hover:text-foreground transition-colors">
+                    <Info className="w-3 h-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="start" className="max-w-xs p-3 text-xs space-y-1.5">
+                  {info}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
         <div className={`p-2 rounded-lg ${variant === 'emerald' ? 'bg-primary/10' : variant === 'gold' ? 'bg-accent/10' : 'bg-secondary'}`}>
           <Icon className={`w-4 h-4 ${variant === 'emerald' ? 'text-primary' : variant === 'gold' ? 'text-accent' : 'text-muted-foreground'}`} />
         </div>

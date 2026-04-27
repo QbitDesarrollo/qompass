@@ -437,7 +437,10 @@ export default function CapitalPriorityWidget({
             </div>
             <div>
               <h3 className="text-sm font-semibold text-foreground">Prioridad de Capital</h3>
-              <p className="text-[10px] text-muted-foreground">Top 3 · 60% EBITDA + 30% capacidad + 10% ascenso</p>
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                Top 3 · 60% EBITDA + 30% capacidad + 10% ascenso
+                <ScoreFormulaTooltip />
+              </p>
             </div>
           </div>
           <Link to="/war-room" className="text-xs text-primary hover:underline">Ver matriz →</Link>
@@ -462,9 +465,10 @@ export default function CapitalPriorityWidget({
           </div>
           <div>
             <h3 className="text-sm font-semibold text-foreground">Prioridad de Despliegue de Capital</h3>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-[10px] text-muted-foreground inline-flex items-center gap-1 flex-wrap">
               Score = 60% EBITDA · 30% capacidad de deuda adicional · 10% momentum de ascenso · DSCR objetivo {targetDSCR.toFixed(2)}x
-              {onSelectAgency ? ' · Click para seleccionar agencia' : ''}
+              <ScoreFormulaTooltip />
+              {onSelectAgency ? <span>· Click para seleccionar agencia</span> : null}
             </p>
           </div>
         </div>

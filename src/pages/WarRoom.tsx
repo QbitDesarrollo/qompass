@@ -14,6 +14,7 @@ export default function WarRoom() {
   const [standaloneMultiple, setStandaloneMultiple] = useState(4);
   const [customEquity, setCustomEquity] = useState<number | null>(null);
   const [targetDSCR, setTargetDSCR] = useState(1.5);
+  const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
 
   const currentConsolidated = useMemo(() => getConsolidatedEbitda(mockAgencies), []);
 
@@ -114,7 +115,7 @@ export default function WarRoom() {
                 return (
                   <button
                     key={v}
-                    onClick={() => { setSelectedVertical(v); setSimulateTransition(null); }}
+                    onClick={() => { setSelectedVertical(v); setSimulateTransition(null); setSelectedAgencyId(null); }}
                     className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all ${
                       selectedVertical === v
                         ? 'bg-primary/15 text-primary border border-primary/30'
@@ -200,16 +201,28 @@ export default function WarRoom() {
                 <span className="col-span-3 text-right">Revenue</span>
                 <span className="col-span-3 text-right">EBITDA</span>
               </div>
-              {mockAgencies.filter(a => a.vertical === selectedVertical).map(a => (
-                <div key={a.id} className={`grid grid-cols-12 gap-2 items-center px-3 py-2 rounded-lg bg-secondary/30 text-xs ${
-                  simulation?.targetAgencies.some(t => t.id === a.id) ? 'ring-1 ring-accent/50' : ''
-                }`}>
-                  <span className="col-span-5 text-foreground font-medium truncate">{a.name}</span>
-                  <span className="col-span-1 text-center text-muted-foreground">N{a.nivel}</span>
-                  <span className="col-span-3 text-right font-mono text-foreground">{formatCurrency(a.revenue)}</span>
-                  <span className="col-span-3 text-right font-mono text-primary">{formatCurrency(a.ebitda)}</span>
-                </div>
-              ))}
+              {mockAgencies.filter(a => a.vertical === selectedVertical).map(a => {
+                const isSelected = selectedAgencyId === a.id;
+                const isTarget = simulation?.targetAgencies.some(t => t.id === a.id);
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() => setSelectedAgencyId(isSelected ? null : a.id)}
+                    className={`w-full grid grid-cols-12 gap-2 items-center px-3 py-2 rounded-lg text-xs text-left transition-all ${
+                      isSelected
+                        ? 'bg-primary/15 ring-1 ring-primary/50'
+                        : isTarget
+                        ? 'bg-secondary/30 ring-1 ring-accent/50 hover:bg-secondary/50'
+                        : 'bg-secondary/30 hover:bg-secondary/50'
+                    }`}
+                  >
+                    <span className={`col-span-5 font-medium truncate ${isSelected ? 'text-primary' : 'text-foreground'}`}>{a.name}</span>
+                    <span className="col-span-1 text-center text-muted-foreground">N{a.nivel}</span>
+                    <span className="col-span-3 text-right font-mono text-foreground">{formatCurrency(a.revenue)}</span>
+                    <span className="col-span-3 text-right font-mono text-primary">{formatCurrency(a.ebitda)}</span>
+                  </button>
+                );
+              })}
               {(() => {
                 const list = mockAgencies.filter(a => a.vertical === selectedVertical);
                 const totalRev = list.reduce((s, a) => s + a.revenue, 0);
@@ -383,7 +396,7 @@ export default function WarRoom() {
           <div className="flex items-center justify-between flex-wrap gap-3">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Banknote className="w-4 h-4 text-primary" />
-              Capacidad de Apalancamiento — {selectedVertical}
+              Capacidad de Apalancamiento {selectedAgencyId ? `— ${leverage.rows.find(r => r.agency.id === selectedAgencyId)?.agency.name}` : `— ${selectedVertical}`}
             </h2>
             <div className="flex items-center gap-3 glass-card px-4 py-2">
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">DSCR Objetivo</span>
@@ -401,83 +414,55 @@ export default function WarRoom() {
             </div>
           </div>
 
-          {/* Vertical totals */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div className="glass-card p-4">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Op. Cashflow Vertical</span>
-              <p className="text-lg font-bold font-mono mt-1 text-foreground">{formatCurrency(leverage.totalOCF)}</p>
+          {!selectedAgencyId && (
+            <div className="glass-card p-6 border-dashed border-primary/30 text-center">
+              <Banknote className="w-6 h-6 text-primary mx-auto mb-2" />
+              <p className="text-sm font-semibold text-foreground">Selecciona una agencia</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Haz click en una agencia del listado <span className="text-primary">"Agencias en {selectedVertical}"</span> para ver su capacidad de apalancamiento individual.
+              </p>
             </div>
-            <div className="glass-card p-4">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Debt Service Actual</span>
-              <p className="text-lg font-bold font-mono mt-1 text-muted-foreground">{formatCurrency(leverage.totalDS)}</p>
-              <div className="mt-1"><DSCRBadge value={leverage.verticalDSCR} /></div>
-            </div>
-            <div className="glass-card p-4 border-accent/30">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Debt Service Adicional</span>
-              <p className="text-lg font-bold font-mono mt-1 text-accent">+{formatCurrency(leverage.totalAdditionalDebtService)}</p>
-              <p className="text-[10px] text-muted-foreground">manteniendo DSCR ≥ {targetDSCR.toFixed(2)}x</p>
-            </div>
-            <div className="glass-card p-4 border-primary/30 glow-emerald">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Capacidad de Deuda</span>
-              <p className="text-2xl font-bold font-mono mt-1 text-primary">{formatCurrency(leverage.totalAdditionalDebt)}</p>
-              <p className="text-[10px] text-muted-foreground">Deuda incremental disponible (≈6x svc)</p>
-            </div>
-          </div>
+          )}
 
-          {/* Per-agency table */}
-          <div className="glass-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-secondary/30">
-                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">Agencia</th>
-                    <th className="text-center py-3 px-4 text-xs font-medium text-muted-foreground">Niv</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">Op. CF</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">Debt Svc</th>
-                    <th className="text-left py-3 px-4 text-xs font-medium text-muted-foreground">DSCR Actual</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">Debt Svc Máx</th>
-                    <th className="text-right py-3 px-4 text-xs font-medium text-muted-foreground">Capacidad Adicional</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {leverage.rows.map(r => {
-                    const status = getDSCRStatus(r.currentDSCR);
-                    const exhausted = r.additionalDebtService <= 0;
-                    return (
-                      <tr key={r.agency.id} className="border-b border-border/30 hover:bg-secondary/20 transition-colors">
-                        <td className="py-3 px-4 text-foreground font-medium">{r.agency.name}</td>
-                        <td className="py-3 px-4 text-center text-muted-foreground text-xs">N{r.agency.nivel}</td>
-                        <td className="py-3 px-4 text-right font-mono text-xs">{formatCurrency(r.agency.operatingCashflow)}</td>
-                        <td className="py-3 px-4 text-right font-mono text-xs text-muted-foreground">{formatCurrency(r.agency.debtService)}</td>
-                        <td className="py-3 px-4"><DSCRBadge value={r.currentDSCR} /></td>
-                        <td className="py-3 px-4 text-right font-mono text-xs">{formatCurrency(r.maxDebtService)}</td>
-                        <td className={`py-3 px-4 text-right font-mono text-xs font-semibold ${exhausted ? 'text-destructive' : 'text-primary'}`}>
-                          {exhausted ? '— sin capacidad' : `+${formatCurrency(r.additionalDebt)}`}
-                          {!exhausted && (
-                            <div className="text-[9px] text-muted-foreground font-normal">
-                              (svc +{formatCurrency(r.additionalDebtService)})
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  <tr className="bg-primary/5 border-t border-primary/20">
-                    <td className="py-3 px-4 font-semibold text-foreground" colSpan={5}>Total Vertical</td>
-                    <td className="py-3 px-4 text-right font-mono text-xs text-muted-foreground">
-                      {formatCurrency(leverage.totalOCF / targetDSCR)}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono text-xs font-bold text-primary">
-                      +{formatCurrency(leverage.totalAdditionalDebt)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div className="px-4 py-2 text-[10px] text-muted-foreground border-t border-border bg-secondary/20">
-              Capacidad = (Op. Cashflow / DSCR objetivo − Debt Service actual) × 6x. El múltiplo 6x aproxima deuda corporativa a ~6 años amortizable.
-            </div>
-          </div>
+          {selectedAgencyId && (() => {
+            const r = leverage.rows.find(row => row.agency.id === selectedAgencyId);
+            if (!r) return null;
+            const exhausted = r.additionalDebtService <= 0;
+            return (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="glass-card p-4">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Op. Cashflow</span>
+                    <p className="text-lg font-bold font-mono mt-1 text-foreground">{formatCurrency(r.agency.operatingCashflow)}</p>
+                  </div>
+                  <div className="glass-card p-4">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Debt Service Actual</span>
+                    <p className="text-lg font-bold font-mono mt-1 text-muted-foreground">{formatCurrency(r.agency.debtService)}</p>
+                    <div className="mt-1"><DSCRBadge value={r.currentDSCR} /></div>
+                  </div>
+                  <div className="glass-card p-4 border-accent/30">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Debt Svc Máx (objetivo)</span>
+                    <p className="text-lg font-bold font-mono mt-1 text-accent">{formatCurrency(r.maxDebtService)}</p>
+                    <p className="text-[10px] text-muted-foreground">manteniendo DSCR ≥ {targetDSCR.toFixed(2)}x</p>
+                  </div>
+                  <div className={`glass-card p-4 ${exhausted ? 'border-destructive/40' : 'border-primary/30 glow-emerald'}`}>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Capacidad Adicional</span>
+                    <p className={`text-2xl font-bold font-mono mt-1 ${exhausted ? 'text-destructive' : 'text-primary'}`}>
+                      {exhausted ? '— sin capacidad' : `+${formatCurrency(r.additionalDebt)}`}
+                    </p>
+                    {!exhausted && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Debt service incremental: +{formatCurrency(r.additionalDebtService)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="glass-card px-4 py-2 text-[10px] text-muted-foreground">
+                  Capacidad = (Op. Cashflow / DSCR objetivo − Debt Service actual) × 6x. El múltiplo 6x aproxima deuda corporativa a ~6 años amortizable.
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
     </AppLayout>

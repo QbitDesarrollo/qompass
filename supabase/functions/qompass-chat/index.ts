@@ -63,6 +63,11 @@ serve(async (req) => {
 
     const systemFull = `${SYSTEM_PROMPT}\n\n## SNAPSHOT ACTUAL DE QOMPASS (datos en JSON)\n\n\`\`\`json\n${contextString}\n\`\`\``;
 
+    const safeMessages = messages
+      .filter((message) => message && (message.role === "user" || message.role === "assistant"))
+      .filter((message) => message.role === "user" || String(message.content ?? "").trim().length > 0)
+      .slice(-12);
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -73,9 +78,12 @@ serve(async (req) => {
         model: "openai/gpt-5",
         messages: [
           { role: "system", content: systemFull },
-          ...messages,
+          ...safeMessages,
         ],
         stream: true,
+        reasoning: {
+          effort: "minimal",
+        },
       }),
     });
 

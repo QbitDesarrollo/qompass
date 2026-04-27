@@ -1,6 +1,8 @@
 import { LucideIcon, Info } from 'lucide-react';
 import { ReactNode } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import DeltaBadge from './DeltaBadge';
+import type { DualDelta } from '@/lib/historical-data';
 
 interface KPICardProps {
   title: string;
@@ -10,9 +12,12 @@ interface KPICardProps {
   trend?: { value: string; positive: boolean };
   variant?: 'default' | 'emerald' | 'gold';
   info?: ReactNode;
+  delta?: DualDelta;
+  /** Para métricas donde "menos es mejor" (ej: Debt Service / OCF) */
+  invertDeltaColor?: boolean;
 }
 
-export default function KPICard({ title, value, subtitle, icon: Icon, trend, variant = 'default', info }: KPICardProps) {
+export default function KPICard({ title, value, subtitle, icon: Icon, trend, variant = 'default', info, delta, invertDeltaColor }: KPICardProps) {
   const borderClass = variant === 'emerald' 
     ? 'border-primary/30 glow-emerald' 
     : variant === 'gold' 
@@ -46,13 +51,16 @@ export default function KPICard({ title, value, subtitle, icon: Icon, trend, var
       <p className={`text-2xl font-bold font-mono tracking-tight ${variant === 'emerald' ? 'text-primary' : variant === 'gold' ? 'text-accent' : 'text-foreground'}`}>
         {value}
       </p>
-      <div className="flex items-center gap-2 mt-1">
-        {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
-        {trend && (
-          <span className={`text-xs font-medium ${trend.positive ? 'text-primary' : 'text-destructive'}`}>
-            {trend.positive ? '↑' : '↓'} {trend.value}
-          </span>
-        )}
+      <div className="mt-1 space-y-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          {subtitle && <span className="text-xs text-muted-foreground">{subtitle}</span>}
+          {trend && !delta && (
+            <span className={`text-xs font-medium ${trend.positive ? 'text-primary' : 'text-destructive'}`}>
+              {trend.positive ? '↑' : '↓'} {trend.value}
+            </span>
+          )}
+        </div>
+        {delta && <DeltaBadge delta={delta} invertColor={invertDeltaColor} />}
       </div>
     </div>
   );

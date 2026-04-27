@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Building2, DollarSign, TrendingUp, PieChart, Crown, Wallet, Banknote, ShieldCheck } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import KPICard from '@/components/KPICard';
@@ -6,29 +6,44 @@ import { PowerMapChart, VerticalDistributionChart } from '@/components/Dashboard
 import { NivelBadge, AscensionBadge, DSCRBadge } from '@/components/StatusBadges';
 import CapitalPriorityWidget from '@/components/CapitalPriorityWidget';
 import InfoTooltip from '@/components/InfoTooltip';
+import PeriodSelector from '@/components/PeriodSelector';
+import DeltaBadge from '@/components/DeltaBadge';
 import { mockAgencies } from '@/lib/mock-data';
 import { formatCurrency, formatPercent, getConsolidatedEbitda, getAscensionOpportunity, calcIPE, calcIPP, calcIPC, calcDSCR, getDSCRStatus, NIVELES } from '@/lib/quantum-engine';
+import { Period, currentPeriod, getSnapshot, previousPeriod, yoyPeriod, getDualDelta, formatPeriod } from '@/lib/historical-data';
 import { Link } from 'react-router-dom';
 
 export default function Dashboard() {
+  const [period, setPeriod] = useState<Period>(() => currentPeriod('month'));
+
+  const { snap, prev, yoy, deltas } = useMemo(() => {
+    const s = getSnapshot(period);
+    const p = getSnapshot(previousPeriod(period));
+    const y = getSnapshot(yoyPeriod(period));
+    const mk = (sel: (x: typeof s) => number) => getDualDelta(s, p, y, sel);
+    return {
+      snap: s, prev: p, yoy: y,
+      deltas: {
+        revenue:        mk(x => x.totalRevenue),
+        agi:            mk(x => x.totalAGI),
+        ebitda:         mk(x => x.totalEbitda),
+        consolidated:   mk(x => x.consolidatedEbitda),
+        ocf:            mk(x => x.totalOCF),
+        ds:             mk(x => x.totalDS),
+        dscr:           mk(x => x.groupDSCR),
+        dsOverOcf:      mk(x => x.dsOverOcf),
+      },
+    };
+  }, [period]);
+
   const stats = useMemo(() => {
-    const totalRevenue = mockAgencies.reduce((s, a) => s + a.revenue, 0);
-    const totalAGI = mockAgencies.reduce((s, a) => s + a.agi, 0);
-    const totalEbitda = mockAgencies.reduce((s, a) => s + a.ebitda, 0);
-    const consolidatedEbitda = getConsolidatedEbitda(mockAgencies);
     const byNivel = NIVELES.map(n => ({ nivel: n, count: mockAgencies.filter(a => a.nivel === n).length }));
-    const totalOCF = mockAgencies.reduce((s, a) => s + a.operatingCashflow, 0);
-    const totalDS = mockAgencies.reduce((s, a) => s + a.debtService, 0);
-    const groupDSCR = totalDS > 0 ? totalOCF / totalDS : Infinity;
-    const ebitdaMargin = totalRevenue > 0 ? (totalEbitda / totalRevenue) * 100 : 0;
-    const consolidatedEbitdaMargin = totalRevenue > 0 ? (consolidatedEbitda / totalRevenue) * 100 : 0;
-    const dsOverOcf = totalOCF > 0 ? (totalDS / totalOCF) * 100 : 0;
     const dscrBuckets = mockAgencies.reduce((acc, a) => {
       const st = getDSCRStatus(calcDSCR(a));
       acc[st] = (acc[st] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    return { totalRevenue, totalAGI, totalEbitda, consolidatedEbitda, byNivel, totalOCF, totalDS, groupDSCR, dscrBuckets, ebitdaMargin, consolidatedEbitdaMargin, dsOverOcf };
+    return { byNivel, dscrBuckets };
   }, []);
 
   const topAgencies = useMemo(() => {
@@ -41,10 +56,22 @@ export default function Dashboard() {
     <AppLayout>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Visión consolidada de Quantum Group</p>
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+            <p className="text-sm text-muted-foreground">
+              Visión consolidada · <span className="text-foreground font-mono">{formatPeriod(period)}</span>
+              <span className="text-muted-foreground/70"> · vs <span className="font-mono">{formatPeriod(previousPeriod(period))}</span> y YoY <span className="font-mono">{formatPeriod(yoyPeriod(period))}</span></span>
+            </p>
+          </div>
+          <PeriodSelector period={period} onPeriodChange={setPeriod} />
         </div>
+
+        {!snap.available && (
+          <div className="glass-card p-4 border-yellow-500/30 text-xs text-yellow-400">
+            No hay datos históricos para <span className="font-mono">{formatPeriod(period)}</span>. Selecciona otro periodo.
+          </div>
+        )}
 
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -68,49 +95,53 @@ export default function Dashboard() {
           />
           <KPICard
             title="Revenue Total"
-            value={formatCurrency(stats.totalRevenue)}
-            trend={{ value: '+12.5%', positive: true }}
+            value={formatCurrency(snap.totalRevenue)}
+            delta={deltas.revenue}
             icon={DollarSign}
             info={
               <>
-                <div className="font-semibold text-foreground">Revenue agregado del grupo</div>
-                <div className="text-muted-foreground">Suma de los ingresos anuales de todas las agencias spoke (100% del top-line de cada una, sin ponderar por equity).</div>
+                <div className="font-semibold text-foreground">Revenue agregado del grupo · {formatPeriod(period)}</div>
+                <div className="text-muted-foreground">Suma de los ingresos del periodo seleccionado para todas las agencias spoke (100% top-line, sin ponderar por equity).</div>
                 <div className="font-mono text-[10px]">Σ revenue<sub>i</sub></div>
+                <div className="text-[10px] text-muted-foreground">Δ vs periodo anterior y vs mismo periodo del año pasado (YoY).</div>
               </>
             }
           />
           <KPICard
             title="AGI (Margen Bruto)"
-            value={formatCurrency(stats.totalAGI)}
-            subtitle={formatPercent(stats.totalAGI / stats.totalRevenue * 100)}
+            value={formatCurrency(snap.totalAGI)}
+            subtitle={snap.totalRevenue > 0 ? formatPercent(snap.totalAGI / snap.totalRevenue * 100) : '—'}
+            delta={deltas.agi}
             icon={TrendingUp}
             info={
               <>
                 <div className="font-semibold text-foreground">Adjusted Gross Income</div>
                 <div className="text-muted-foreground">Margen bruto consolidado: revenue menos costos directos (media buys, producción, pass-through). Mide el negocio "real" del grupo.</div>
-                <div className="font-mono text-[10px]">AGI / Revenue · {formatPercent(stats.totalAGI / stats.totalRevenue * 100)}</div>
+                <div className="font-mono text-[10px]">AGI / Revenue · {snap.totalRevenue > 0 ? formatPercent(snap.totalAGI / snap.totalRevenue * 100) : '—'}</div>
               </>
             }
           />
           <KPICard
             title="EBITDA Total"
-            value={formatCurrency(stats.totalEbitda)}
-            subtitle={`${formatPercent(stats.ebitdaMargin)} del Revenue`}
+            value={formatCurrency(snap.totalEbitda)}
+            subtitle={`${formatPercent(snap.ebitdaMargin)} del Revenue`}
+            delta={deltas.ebitda}
             icon={PieChart}
             variant="emerald"
             info={
               <>
                 <div className="font-semibold text-primary">EBITDA agregado (sin ponderar por equity)</div>
-                <div className="text-muted-foreground">Suma del EBITDA de las agencias al 100%. Muestra la rentabilidad operativa total del ecosistema.</div>
-                <div className="font-mono text-[10px] text-foreground">Margen EBITDA = EBITDA / Revenue = {formatPercent(stats.ebitdaMargin)}</div>
+                <div className="text-muted-foreground">Suma del EBITDA de las agencias al 100% en {formatPeriod(period)}.</div>
+                <div className="font-mono text-[10px] text-foreground">Margen EBITDA = EBITDA / Revenue = {formatPercent(snap.ebitdaMargin)}</div>
                 <div className="text-[10px] text-muted-foreground">Benchmark sano en agencias: 15–25%.</div>
               </>
             }
           />
           <KPICard
             title="EBITDA Consolidado"
-            value={formatCurrency(stats.consolidatedEbitda)}
-            subtitle={`Ponderado por equity · ${formatPercent(stats.consolidatedEbitdaMargin)} del Revenue`}
+            value={formatCurrency(snap.consolidatedEbitda)}
+            subtitle={`Ponderado por equity · ${formatPercent(snap.consolidatedEbitdaMargin)} del Revenue`}
+            delta={deltas.consolidated}
             icon={Crown}
             variant="gold"
             info={
@@ -118,7 +149,7 @@ export default function Dashboard() {
                 <div className="font-semibold text-accent">EBITDA atribuible al grupo</div>
                 <div className="text-muted-foreground">Suma del EBITDA de cada agencia ponderado por el % de equity que el grupo controla. Es el EBITDA "real" para valoración.</div>
                 <div className="font-mono text-[10px] text-foreground">Σ (EBITDA<sub>i</sub> × equity<sub>i</sub> / 100)</div>
-                <div className="text-[10px] text-muted-foreground">Margen consolidado: {formatPercent(stats.consolidatedEbitdaMargin)} del Revenue total.</div>
+                <div className="text-[10px] text-muted-foreground">Margen consolidado: {formatPercent(snap.consolidatedEbitdaMargin)} del Revenue total.</div>
               </>
             }
           />
@@ -126,12 +157,13 @@ export default function Dashboard() {
 
         {/* Cash & Debt KPIs */}
         <div>
-          <h2 className="text-sm font-semibold text-foreground mb-3">Cash & Debt — Salud Financiera</h2>
+          <h2 className="text-sm font-semibold text-foreground mb-3">Cash & Debt — Salud Financiera <span className="text-muted-foreground font-normal">· {formatPeriod(period)}</span></h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <KPICard
               title="Operating Cashflow"
-              value={formatCurrency(stats.totalOCF)}
-              subtitle="Flujo operativo anual consolidado"
+              value={formatCurrency(snap.totalOCF)}
+              subtitle={`Flujo operativo · ${formatPeriod(period)}`}
+              delta={deltas.ocf}
               icon={Wallet}
               variant="emerald"
               info={
@@ -144,20 +176,23 @@ export default function Dashboard() {
             />
             <KPICard
               title="Debt Service"
-              value={formatCurrency(stats.totalDS)}
-              subtitle={`${formatPercent(stats.dsOverOcf)} del Op. Cashflow`}
+              value={formatCurrency(snap.totalDS)}
+              subtitle={`${formatPercent(snap.dsOverOcf)} del Op. Cashflow`}
+              delta={deltas.ds}
+              invertDeltaColor
               icon={Banknote}
               info={
                 <>
                   <div className="font-semibold text-foreground">Debt Service consolidado</div>
-                  <div className="text-muted-foreground">Suma anual de pagos de deuda (capital + intereses) de todas las agencias.</div>
-                  <div className="font-mono text-[10px] text-foreground">Debt Svc / OCF = {formatPercent(stats.dsOverOcf)}</div>
+                  <div className="text-muted-foreground">Suma de pagos de deuda (capital + intereses) en {formatPeriod(period)}.</div>
+                  <div className="font-mono text-[10px] text-foreground">Debt Svc / OCF = {formatPercent(snap.dsOverOcf)}</div>
                   <ul className="list-disc pl-4 text-[10px] text-muted-foreground">
                     <li>&lt; 50% → holgado, hay headroom</li>
                     <li>50–66% → sano (DSCR ~1.5x)</li>
                     <li>66–80% → ajustado (DSCR ~1.25x)</li>
                     <li>&gt; 80% → riesgo (DSCR &lt; 1.25x)</li>
                   </ul>
+                  <div className="text-[10px] text-muted-foreground">Color invertido en el delta: una baja es buena.</div>
                 </>
               }
             />
@@ -183,14 +218,17 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="flex items-baseline gap-2">
-                <p className="text-2xl font-bold font-mono tracking-tight text-accent">{stats.groupDSCR.toFixed(2)}x</p>
-                <DSCRBadge value={stats.groupDSCR} showValue={false} />
+                <p className="text-2xl font-bold font-mono tracking-tight text-accent">{isFinite(snap.groupDSCR) ? snap.groupDSCR.toFixed(2) : '∞'}x</p>
+                <DSCRBadge value={snap.groupDSCR} showValue={false} />
               </div>
-              <div className="flex flex-wrap gap-1.5 mt-2 text-[10px] text-muted-foreground">
-                <span>Operating CF / Debt Service</span>
-                <span className="ml-auto font-mono">
-                  ✓{stats.dscrBuckets.excelente || 0} · ✓{stats.dscrBuckets.bueno || 0} · ⚠{stats.dscrBuckets.aceptable || 0} · ✗{stats.dscrBuckets.riesgo || 0}
-                </span>
+              <div className="mt-2 space-y-1">
+                <div className="flex flex-wrap gap-1.5 text-[10px] text-muted-foreground">
+                  <span>Operating CF / Debt Service</span>
+                  <span className="ml-auto font-mono">
+                    ✓{stats.dscrBuckets.excelente || 0} · ✓{stats.dscrBuckets.bueno || 0} · ⚠{stats.dscrBuckets.aceptable || 0} · ✗{stats.dscrBuckets.riesgo || 0}
+                  </span>
+                </div>
+                <DeltaBadge delta={deltas.dscr} />
               </div>
             </div>
           </div>
@@ -198,8 +236,8 @@ export default function Dashboard() {
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <PowerMapChart />
-          <VerticalDistributionChart />
+          <PowerMapChart period={period} />
+          <VerticalDistributionChart period={period} />
         </div>
 
         {/* Capital Priority — compact */}

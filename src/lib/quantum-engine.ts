@@ -34,6 +34,9 @@ export interface Agency {
   ippHistory: number[];
   ipcHistory: number[];
   country: string;
+  // Cash & Debt
+  operatingCashflow: number; // annual operating cash flow USD
+  debtService: number;       // annual debt obligation (principal + interest) USD
 }
 
 // Index calculations
@@ -73,6 +76,28 @@ export function isLevel1Eligible(a: Agency): boolean {
 export function getConsolidatedEbitda(agencies: Agency[]): number {
   return agencies.reduce((sum, a) => sum + a.ebitda * (a.equity / 100), 0);
 }
+
+// Cash flow helpers
+export function calcDSCR(a: Agency): number {
+  if (!a.debtService || a.debtService <= 0) return Infinity;
+  return a.operatingCashflow / a.debtService;
+}
+
+export type DSCRStatus = 'excelente' | 'bueno' | 'aceptable' | 'riesgo';
+
+export function getDSCRStatus(dscr: number): DSCRStatus {
+  if (dscr >= 2) return 'excelente';
+  if (dscr >= 1.5) return 'bueno';
+  if (dscr >= 1.25) return 'aceptable';
+  return 'riesgo';
+}
+
+export const DSCR_STATUS_LABEL: Record<DSCRStatus, string> = {
+  excelente: 'Excelente (≥2.0x)',
+  bueno: 'Bueno (1.5–2.0x)',
+  aceptable: 'Aceptable (1.25–1.5x)',
+  riesgo: 'En Riesgo (<1.25x)',
+};
 
 export function formatCurrency(n: number): string {
   if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;

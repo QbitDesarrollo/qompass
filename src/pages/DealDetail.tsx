@@ -15,9 +15,10 @@ import {
 import {
   ArrowLeft, Calculator, ShieldCheck, FileText, AlertTriangle, CheckCircle2,
   Circle, Eye, Flame, Star, Search, Filter, TrendingUp, TrendingDown, Banknote,
-  HandCoins, Building2, PiggyBank, Coins, FileBarChart2,
+  HandCoins, Building2, PiggyBank, Coins, FileBarChart2, Mail,
 } from 'lucide-react';
 import { useDeals } from '@/lib/deals/deals-store';
+import DealCommunications from '@/components/deals/DealCommunications';
 import {
   computeDeal, fmtCurrency, fmtPct, STAGE_META, DealStage, DealInputs,
   AssetLine, DD_CATEGORIES, ddProgress, ddTotals,
@@ -35,7 +36,7 @@ const STATUS_META: Record<DdStatus, { label: string; icon: any; cls: string }> =
 export default function DealDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getDeal, updateDeal, setDdStatus } = useDeals();
+  const { getDeal, updateDeal, setDdStatus, setTemplate } = useDeals();
   const deal = id ? getDeal(id) : undefined;
 
   if (!deal) {
@@ -108,6 +109,7 @@ export default function DealDetail() {
             <TabsTrigger value="overview" className="gap-2"><FileText className="w-4 h-4" /> Overview</TabsTrigger>
             <TabsTrigger value="analysis" className="gap-2"><Calculator className="w-4 h-4" /> Deal Analysis</TabsTrigger>
             <TabsTrigger value="dd"       className="gap-2"><ShieldCheck className="w-4 h-4" /> Due Diligence</TabsTrigger>
+            <TabsTrigger value="comms"    className="gap-2"><Mail className="w-4 h-4" /> Comunicación</TabsTrigger>
           </TabsList>
 
           {/* ─── Overview ─── */}
@@ -142,6 +144,14 @@ export default function DealDetail() {
           {/* ─── Due Diligence ─── */}
           <TabsContent value="dd" className="mt-6">
             <DueDiligence deal={deal} setStatus={(itemId, st) => setDdStatus(deal.id, itemId, st)} />
+          </TabsContent>
+
+          {/* ─── Comunicación ─── */}
+          <TabsContent value="comms" className="mt-6">
+            <DealCommunications
+              deal={deal}
+              onSave={(stage, tpl) => setTemplate(deal.id, stage, tpl)}
+            />
           </TabsContent>
         </Tabs>
       </div>

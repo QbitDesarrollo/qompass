@@ -266,7 +266,7 @@ export default function Dashboard() {
         </div>
 
         {/* Capital Priority — compact */}
-        <CapitalPriorityWidget variant="compact" />
+        <CapitalPriorityWidget variant="compact" agencies={periodAgencies} />
 
 
         {/* Top Agencies Table */}

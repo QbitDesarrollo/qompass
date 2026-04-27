@@ -3,7 +3,7 @@ import AppLayout from '@/components/AppLayout';
 import { mockAgencies } from '@/lib/mock-data';
 import { VERTICALS, Vertical, NivelIntegracion, formatCurrency, getConsolidatedEbitda, Agency, calcDSCR, calcLeverageCapacity, getDSCRStatus } from '@/lib/quantum-engine';
 import { DSCRBadge } from '@/components/StatusBadges';
-import { Swords, ArrowRight, TrendingUp, Shield, Zap, DollarSign, Sparkles, Banknote } from 'lucide-react';
+import { Swords, ArrowRight, TrendingUp, Shield, Zap, DollarSign, Sparkles, Banknote, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { Slider } from '@/components/ui/slider';
 
@@ -452,14 +452,68 @@ export default function WarRoom() {
                     </p>
                     {!exhausted && (
                       <p className="text-[10px] text-muted-foreground">
-                        Debt service incremental: +{formatCurrency(r.additionalDebtService)}
+                        Δ servicio: {formatCurrency(r.maxDebtService)} − {formatCurrency(r.agency.debtService)} = +{formatCurrency(r.additionalDebtService)}
                       </p>
                     )}
                   </div>
                 </div>
                 <div className="glass-card px-4 py-2 text-[10px] text-muted-foreground">
-                  Capacidad = (Op. Cashflow / DSCR objetivo − Debt Service actual) × 6x. El múltiplo 6x aproxima deuda corporativa a ~6 años amortizable.
+                  Capacidad Adicional = (Debt Svc Máx − Debt Service Actual) × 6x. El múltiplo 6x aproxima deuda corporativa a ~6 años amortizable.
                 </div>
+
+                {/* Acquisition coverage widget */}
+                {simulation && (() => {
+                  const cost = simulation.acquisitionCost;
+                  const capacity = r.additionalDebt;
+                  const covered = capacity >= cost && cost > 0;
+                  const coverageRatio = cost > 0 ? (capacity / cost) * 100 : 0;
+                  const shortfall = cost - capacity;
+                  return (
+                    <div className={`glass-card p-5 ${covered ? 'border-primary/40 glow-emerald' : 'border-destructive/40'}`}>
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-lg ${covered ? 'bg-primary/15' : 'bg-destructive/15'}`}>
+                          {covered
+                            ? <CheckCircle2 className="w-5 h-5 text-primary" />
+                            : <AlertTriangle className="w-5 h-5 text-destructive" />}
+                        </div>
+                        <div className="flex-1 min-w-[180px]">
+                          <p className={`text-sm font-semibold ${covered ? 'text-primary' : 'text-destructive'}`}>
+                            {covered
+                              ? 'Cobertura Total — Adquisición Financiable con Deuda'
+                              : 'Cobertura Insuficiente — Requiere Equity Adicional'}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            Costo de Adquisición ({simulateTransition}) = <span className="font-mono text-destructive">{formatCurrency(cost)}</span>
+                            {' · '}Capacidad de Deuda de {r.agency.name} = <span className="font-mono text-primary">{formatCurrency(capacity)}</span>
+                          </p>
+                          <div className="mt-3 space-y-1">
+                            <div className="flex justify-between text-[10px] text-muted-foreground">
+                              <span>Cobertura</span>
+                              <span className="font-mono">{coverageRatio.toFixed(0)}%</span>
+                            </div>
+                            <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${covered ? 'bg-primary' : 'bg-destructive'}`}
+                                style={{ width: `${Math.min(coverageRatio, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                          <p className="text-[11px] mt-2">
+                            {covered ? (
+                              <span className="text-primary">
+                                ✓ Sobrante de deuda: <span className="font-mono">{formatCurrency(capacity - cost)}</span> · DSCR objetivo {targetDSCR.toFixed(2)}x preservado.
+                              </span>
+                            ) : (
+                              <span className="text-destructive">
+                                ⚠ Faltante: <span className="font-mono">{formatCurrency(shortfall)}</span> debe cubrirse con equity o renegociar DSCR objetivo.
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </>
             );
           })()}

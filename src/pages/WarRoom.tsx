@@ -14,6 +14,7 @@ export default function WarRoom() {
   const [standaloneMultiple, setStandaloneMultiple] = useState(4);
   const [customEquity, setCustomEquity] = useState<number | null>(null);
   const [targetDSCR, setTargetDSCR] = useState(1.5);
+  const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
 
   const currentConsolidated = useMemo(() => getConsolidatedEbitda(mockAgencies), []);
 
@@ -200,16 +201,28 @@ export default function WarRoom() {
                 <span className="col-span-3 text-right">Revenue</span>
                 <span className="col-span-3 text-right">EBITDA</span>
               </div>
-              {mockAgencies.filter(a => a.vertical === selectedVertical).map(a => (
-                <div key={a.id} className={`grid grid-cols-12 gap-2 items-center px-3 py-2 rounded-lg bg-secondary/30 text-xs ${
-                  simulation?.targetAgencies.some(t => t.id === a.id) ? 'ring-1 ring-accent/50' : ''
-                }`}>
-                  <span className="col-span-5 text-foreground font-medium truncate">{a.name}</span>
-                  <span className="col-span-1 text-center text-muted-foreground">N{a.nivel}</span>
-                  <span className="col-span-3 text-right font-mono text-foreground">{formatCurrency(a.revenue)}</span>
-                  <span className="col-span-3 text-right font-mono text-primary">{formatCurrency(a.ebitda)}</span>
-                </div>
-              ))}
+              {mockAgencies.filter(a => a.vertical === selectedVertical).map(a => {
+                const isSelected = selectedAgencyId === a.id;
+                const isTarget = simulation?.targetAgencies.some(t => t.id === a.id);
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() => setSelectedAgencyId(isSelected ? null : a.id)}
+                    className={`w-full grid grid-cols-12 gap-2 items-center px-3 py-2 rounded-lg text-xs text-left transition-all ${
+                      isSelected
+                        ? 'bg-primary/15 ring-1 ring-primary/50'
+                        : isTarget
+                        ? 'bg-secondary/30 ring-1 ring-accent/50 hover:bg-secondary/50'
+                        : 'bg-secondary/30 hover:bg-secondary/50'
+                    }`}
+                  >
+                    <span className={`col-span-5 font-medium truncate ${isSelected ? 'text-primary' : 'text-foreground'}`}>{a.name}</span>
+                    <span className="col-span-1 text-center text-muted-foreground">N{a.nivel}</span>
+                    <span className="col-span-3 text-right font-mono text-foreground">{formatCurrency(a.revenue)}</span>
+                    <span className="col-span-3 text-right font-mono text-primary">{formatCurrency(a.ebitda)}</span>
+                  </button>
+                );
+              })}
               {(() => {
                 const list = mockAgencies.filter(a => a.vertical === selectedVertical);
                 const totalRev = list.reduce((s, a) => s + a.revenue, 0);
